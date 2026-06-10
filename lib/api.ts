@@ -59,9 +59,7 @@ export interface Rental {
   propertyType: PropertyType;
   status: RentalStatus;
   imageUrls: string[];
-  videoUrl?: string;
-  compoundVideoUrl?: string;
-  cardDisplayPreference?: string;
+
   amenities: string[];
   hashtags: string[];
   petsAllowed: boolean;
