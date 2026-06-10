@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -24,17 +24,24 @@ import {
   FlagIcon,
   AdjustmentsHorizontalIcon,
   PresentationChartLineIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
-const navigation = [
+const landlordNavigation = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Rentals", href: "/rentals", icon: BuildingOfficeIcon },
   { name: "Add Rental", href: "/rentals/new", icon: PlusCircleIcon },
   { name: "Messages", href: "/messages", icon: ChatBubbleLeftRightIcon },
+  { name: "Groups", href: "/groups", icon: UserGroupIcon },
   { name: "Ads", href: "/ads", icon: MegaphoneIcon },
   { name: "Ad Verification", href: "/advertisers", icon: UserGroupIcon },
   { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
   { name: "ID Verification", href: "/verification", icon: CheckBadgeIcon },
+  { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
+];
+
+const helperNavigation = [
+  { name: "Helper Dashboard", href: "/helper", icon: WrenchScrewdriverIcon },
   { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
 ];
 
@@ -43,6 +50,8 @@ const superAdminNavigation = [
   { name: "Verify Businesses", href: "/advertisers/verify", icon: UserGroupIcon },
   { name: "Ad Approvals", href: "/super-admin/ad-approvals", icon: ClipboardDocumentCheckIcon },
   { name: "All Users", href: "/super-admin/users", icon: UsersIcon },
+  { name: "Helpers", href: "/super-admin/helpers", icon: WrenchScrewdriverIcon },
+  { name: "Helper Disputes", href: "/super-admin/disputes", icon: ChatBubbleLeftRightIcon },
   { name: "All Rentals", href: "/super-admin/rentals", icon: BuildingOfficeIcon },
   { name: "Pending Approvals", href: "/super-admin/pending", icon: ClipboardDocumentCheckIcon },
   { name: "Reports", href: "/super-admin/reports", icon: FlagIcon },
@@ -62,9 +71,26 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isAuthenticated, isSuperAdmin } = useAuth();
+  const [workspace, setWorkspace] = useState<"landlord" | "helper">("landlord");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("workspaceMode");
+    if (saved === "helper" || saved === "landlord") {
+      setWorkspace(saved);
+    }
+  }, []);
+
+  const handleWorkspaceChange = (newWorkspace: "landlord" | "helper") => {
+    setWorkspace(newWorkspace);
+    localStorage.setItem("workspaceMode", newWorkspace);
+  };
+
   const navItems = useMemo(
-    () => (isSuperAdmin ? [...navigation, ...superAdminNavigation] : navigation),
-    [isSuperAdmin]
+    () => {
+      let baseNav = workspace === "helper" ? helperNavigation : landlordNavigation;
+      return isSuperAdmin ? [...baseNav, ...superAdminNavigation] : baseNav;
+    },
+    [isSuperAdmin, workspace]
   );
 
   const handleLogout = () => {
@@ -138,9 +164,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
-          {navigation.map((item) => {
+        {/* Navigation */}        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
+          {navItems.filter(item => !superAdminNavigation.includes(item)).map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== "/" && pathname.startsWith(item.href) && !pathname.startsWith("/super-admin"));
             return (
@@ -161,6 +186,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               </Link>
             );
           })}
+
+
 
           {/* Super Admin Section */}
           {isSuperAdmin && (
@@ -215,6 +242,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             )}
           </button>
         </div>
+
 
         {/* User section */}
         <div className="p-3 border-t border-gray-800">

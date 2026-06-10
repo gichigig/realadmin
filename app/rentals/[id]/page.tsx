@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { rentalsApi, Rental } from "@/lib/api";
+import { rentalsApi, filesApi, Rental } from "@/lib/api";
 import { 
   PencilIcon,
   ArrowLeftIcon,
@@ -89,7 +89,7 @@ export default function RentalDetailPage() {
           {rental.imageUrls.map((url, index) => (
             <img
               key={index}
-              src={url}
+              src={filesApi.getUrl(url)}
               alt={`Property ${index + 1}`}
               className="w-full h-48 object-cover rounded-lg"
             />

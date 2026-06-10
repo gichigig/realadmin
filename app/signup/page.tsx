@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogleIdToken } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -19,6 +20,8 @@ export default function SignupPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,11 +51,28 @@ export default function SignupPage() {
         lastName: formData.lastName,
         phone: formData.phone || undefined,
       });
-      router.push("/");
+      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      setError("Google sign-up failed: No credential returned");
+      return;
+    }
+    setGoogleLoading(true);
+    setError("");
+    try {
+      await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
+      router.push("/choose-role");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-up failed");
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -188,6 +208,29 @@ export default function SignupPage() {
               "Create account"
             )}
           </button>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-200"></div>
+              <span className="text-xs text-gray-500">OR</span>
+              <div className="flex-1 h-px bg-gray-200"></div>
+            </div>
+            {googleClientId ? (
+              <div className={`w-full flex justify-center ${googleLoading ? "opacity-70" : ""}`}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError("Google sign-up failed")}
+                  text="signup_with"
+                  size="large"
+                  width="400"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 text-center">
+                Google sign-up is not configured.
+              </p>
+            )}
+          </div>
         </form>
       </div>
     </div>

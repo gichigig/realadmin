@@ -13,50 +13,84 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   MapPinIcon,
+  BuildingOfficeIcon,
+  SparklesIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
-const webFeatures = [
+const landlordFeatures = [
   {
-    icon: DocumentMagnifyingGlassIcon,
-    title: "Scan ID Documents",
-    description: "Upload images of found IDs and our OCR technology will extract key information automatically.",
+    icon: BuildingOfficeIcon,
+    title: "Basic Listing (Free)",
+    description: "Post unlimited rental listings with high-quality photos, detailed descriptions, and connect with tenants for free.",
   },
   {
-    icon: CloudArrowUpIcon,
-    title: "Submit Found IDs",
-    description: "Submit found identification documents to our secure database for matching.",
+    icon: SparklesIcon,
+    title: "Video Listings (Premium)",
+    description: "For 300 KSH, enhance your listing with a video walkthrough to get 3x more views and rent faster.",
   },
   {
-    icon: ShieldCheckIcon,
-    title: "Secure Processing",
-    description: "All data is encrypted and handled with strict privacy protections.",
+    icon: CurrencyDollarIcon,
+    title: "Targeted Sponsorships",
+    description: "For 350 KSH, boost your listing to appear on the Map Radar for nearby users, or pin it to the top of area searches.",
   },
 ];
 
-const appFeatures = [
+const tenantFeatures = [
+  {
+    icon: DevicePhoneMobileIcon,
+    title: "Standard App Search",
+    description: "Search for rentals, save favorites, and message landlords securely from our mobile app for free.",
+  },
+  {
+    icon: MapPinIcon,
+    title: "Map Radar Premium",
+    description: "Upgrade to see real-time dots of premium listings exactly where you point your phone using our interactive compass.",
+  },
+  {
+    icon: UserGroupIcon,
+    title: "Hire a Helper",
+    description: "Don't have time to search? Hire a local Helper agent to curate options and schedule viewings for you.",
+  },
+];
+
+const idScannerFeatures = [
   {
     icon: DocumentMagnifyingGlassIcon,
-    title: "Search Database",
-    description: "Search our database of found IDs to locate your lost documents.",
+    title: "Scan & Submit",
+    description: "Find a lost ID? Use our OCR technology to scan and securely upload it to our database.",
   },
   {
     icon: BellAlertIcon,
-    title: "Instant Notifications",
-    description: "Get notified immediately when someone finds an ID matching your search.",
-  },
-  {
-    icon: ChatBubbleLeftRightIcon,
-    title: "Secure Messaging",
-    description: "Communicate with finders through our secure in-app messaging system.",
-  },
-  {
-    icon: DevicePhoneMobileIcon,
-    title: "Camera Scanning",
-    description: "Scan IDs directly using your phone's camera for faster submission.",
+    title: "Get Notified",
+    description: "Get instantly notified when your lost ID is found by someone in the community.",
   },
 ];
 
 const steps = {
+  helpers: [
+    {
+      step: 1,
+      title: "Tell Us What You Need",
+      description: "Specify your budget, preferred location, and required amenities.",
+    },
+    {
+      step: 2,
+      title: "Pay the Service Fee",
+      description: "Pay the Helper's flat service fee to engage their personalized services.",
+    },
+    {
+      step: 3,
+      title: "Review Curated Homes",
+      description: "Your Helper will send you a curated list of homes matching your exact needs.",
+    },
+    {
+      step: 4,
+      title: "Tour & Move In",
+      description: "The Helper schedules the viewings. You tour the best options and sign the lease!",
+    },
+  ],
   scanner: [
     {
       step: 1,
@@ -75,40 +109,8 @@ const steps = {
     },
     {
       step: 4,
-      title: "Review Results",
-      description: "Check the extracted data for accuracy. The system will show detected ID type and key information.",
-    },
-    {
-      step: 5,
-      title: "Download App to Submit",
-      description: "For submitting found IDs and searching, download our mobile app.",
-    },
-  ],
-  app: [
-    {
-      step: 1,
-      title: "Download the App",
-      description: "Get FindMyID from the App Store (iOS) or Google Play (Android).",
-    },
-    {
-      step: 2,
-      title: "Create an Account",
-      description: "Sign up with your email or social media account.",
-    },
-    {
-      step: 3,
-      title: "Report Lost ID",
-      description: "Enter details about your lost ID to create a search alert.",
-    },
-    {
-      step: 4,
-      title: "Get Notified",
-      description: "Receive notifications when a matching ID is found.",
-    },
-    {
-      step: 5,
-      title: "Contact Finder",
-      description: "Use secure messaging to arrange the return of your ID.",
+      title: "Download App to Connect",
+      description: "If you lost an ID or found one, download our mobile app to securely communicate.",
     },
   ],
 };
@@ -136,7 +138,7 @@ export default function HelpPage() {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-gray-900">FindMyID</span>
+              <span className="text-xl font-bold text-gray-900">Dwelly Support</span>
             </Link>
             <div className="flex items-center gap-3">
               <Link
@@ -162,7 +164,7 @@ export default function HelpPage() {
           <QuestionMarkCircleIcon className="w-16 h-16 text-blue-200 mx-auto mb-6" />
           <h1 className="text-4xl font-bold text-white mb-4">Help & Documentation</h1>
           <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-            Learn how to use FindMyID to scan, submit, and search for lost identification documents.
+            Learn how to manage properties, find your dream home, hire a helper, and use our FindMyID scanning system.
           </p>
         </div>
       </section>
@@ -172,13 +174,13 @@ export default function HelpPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-center gap-4">
             <a href="#features" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-              Features
+              Platform Features
             </a>
-            <a href="#how-to-scan" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-              How to Scan
+            <a href="#helpers" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+              Hire a Helper
             </a>
-            <a href="#using-the-app" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-              Using the App
+            <a href="#findmyid" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+              FindMyID (Lost & Found)
             </a>
             <a href="#download" className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
               Download App
@@ -193,22 +195,22 @@ export default function HelpPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Features Section */}
         <section id="features" className="mb-20">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">Platform Features</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">Dwelly Features</h2>
           <p className="text-xl text-gray-600 text-center mb-12 max-w-3xl mx-auto">
-            FindMyID offers different features on web and mobile to provide the best experience for each platform.
+            A comprehensive platform connecting landlords with tenants, loaded with premium tools.
           </p>
 
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Web Features */}
+            {/* Landlords */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <DocumentMagnifyingGlassIcon className="w-6 h-6 text-blue-600" />
+                  <BuildingOfficeIcon className="w-6 h-6 text-blue-600" />
                 </div>
-                Website Features
+                For Landlords (Web)
               </h3>
               <div className="space-y-6">
-                {webFeatures.map((feature) => (
+                {landlordFeatures.map((feature) => (
                   <div key={feature.title} className="flex gap-4">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <feature.icon className="w-5 h-5 text-gray-600" />
@@ -222,16 +224,16 @@ export default function HelpPage() {
               </div>
             </div>
 
-            {/* App Features */}
+            {/* Tenants */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                   <DevicePhoneMobileIcon className="w-6 h-6 text-green-600" />
                 </div>
-                Mobile App Features
+                For Tenants (Mobile App)
               </h3>
               <div className="space-y-6">
-                {appFeatures.map((feature) => (
+                {tenantFeatures.map((feature) => (
                   <div key={feature.title} className="flex gap-4">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <feature.icon className="w-5 h-5 text-gray-600" />
@@ -247,22 +249,22 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* How to Scan Section */}
-        <section id="how-to-scan" className="mb-20">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">How to Use the Web Scanner</h2>
+        {/* Helpers Section */}
+        <section id="helpers" className="mb-20">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">How to Hire a Helper</h2>
           <p className="text-xl text-gray-600 text-center mb-12 max-w-3xl mx-auto">
-            Follow these steps to scan a found ID document using our website.
+            Don't have time to search for a rental? Our network of independent helpers are here to do the legwork for you!
           </p>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
             <div className="space-y-8">
-              {steps.scanner.map((item, index) => (
+              {steps.helpers.map((item, index) => (
                 <div key={item.step} className="flex gap-6">
                   <div className="flex-shrink-0">
                     <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
                       {item.step}
                     </div>
-                    {index < steps.scanner.length - 1 && (
+                    {index < steps.helpers.length - 1 && (
                       <div className="w-0.5 h-12 bg-blue-200 mx-auto mt-2" />
                     )}
                   </div>
@@ -274,40 +276,60 @@ export default function HelpPage() {
               ))}
             </div>
 
-            <div className="mt-10 p-6 bg-amber-50 border border-amber-200 rounded-xl">
-              <h4 className="font-semibold text-amber-800 mb-2">📱 Note: Searching Requires the App</h4>
-              <p className="text-amber-700">
-                The website is designed for scanning found IDs only. To search for your lost ID or submit found IDs to our database, please download the FindMyID mobile app.
-              </p>
+            <div className="mt-10 p-6 bg-blue-50 border border-blue-200 rounded-xl flex gap-4 items-start">
+              <CurrencyDollarIcon className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+              <div>
+                <h4 className="font-semibold text-blue-900 mb-1">Transparent Helper Pricing</h4>
+                <p className="text-blue-800 text-sm">
+                  Independent helpers set their own flat service fees. You pay this fee securely through the platform to engage their services. Helpers receive their earnings after a standard 10% platform fee and 5% KRA withholding tax deduction.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Using the App Section */}
-        <section id="using-the-app" className="mb-20">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">Using the Mobile App</h2>
+        {/* FindMyID Section */}
+        <section id="findmyid" className="mb-20">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">FindMyID (Lost & Found)</h2>
           <p className="text-xl text-gray-600 text-center mb-12 max-w-3xl mx-auto">
-            Get the full FindMyID experience with our mobile app.
+            A built-in utility to scan and report found National ID documents.
           </p>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-            <div className="space-y-8">
-              {steps.app.map((item, index) => (
-                <div key={item.step} className="flex gap-6">
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                      {item.step}
+          <div className="grid md:grid-cols-2 gap-8 items-start">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">How to Scan a Found ID</h3>
+              <div className="space-y-6">
+                {steps.scanner.map((item, index) => (
+                  <div key={item.step} className="flex gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {item.step}
+                      </div>
                     </div>
-                    {index < steps.app.length - 1 && (
-                      <div className="w-0.5 h-12 bg-green-200 mx-auto mt-2" />
-                    )}
+                    <div className="pt-1">
+                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
+                      <p className="text-gray-600 text-sm mt-1">{item.description}</p>
+                    </div>
                   </div>
-                  <div className="pt-2">
-                    <h4 className="font-semibold text-gray-900 text-lg">{item.title}</h4>
-                    <p className="text-gray-600 mt-1">{item.description}</p>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl shadow-sm p-8 text-white">
+              <h3 className="text-xl font-bold mb-6">FindMyID App Features</h3>
+              <div className="space-y-6">
+                {idScannerFeatures.map((feature) => (
+                  <div key={feature.title} className="flex gap-4">
+                    <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{feature.title}</h4>
+                      <p className="text-gray-400 text-sm mt-1">{feature.description}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -317,9 +339,9 @@ export default function HelpPage() {
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 md:p-12">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-1 text-center md:text-left">
-                <h2 className="text-3xl font-bold text-white mb-4">Download the FindMyID App</h2>
+                <h2 className="text-3xl font-bold text-white mb-4">Download the Dwelly App</h2>
                 <p className="text-gray-300 mb-8">
-                  Get full access to all features including searching for lost IDs, receiving notifications, and secure messaging.
+                  Get full access to tenant features including searching for rentals, hiring a helper, and our Premium Map Radar.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                   <a

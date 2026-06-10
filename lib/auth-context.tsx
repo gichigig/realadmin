@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
@@ -40,19 +40,28 @@ export interface User {
   role: "USER" | "ADMIN" | "SUPER_ADMIN";
   userType?: "INDIVIDUAL" | "AGENT" | "COMPANY";
   verificationStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+  emailVerified?: boolean;
   phoneVerified?: boolean;
   faceVerified?: boolean;
   scannedIdNumber?: string;
+  isPremiumActive?: boolean;
+  premiumActive?: boolean;
 }
 
 export interface AuthResponse {
   token: string;
+  refreshToken?: string;
   type: string;
   id: number;
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   role: "USER" | "ADMIN" | "SUPER_ADMIN";
+  emailVerified?: boolean;
+  premiumActive?: boolean;
+  premiumStartedAt?: string;
+  premiumExpiresAt?: string;
 }
 
 export interface MfaChallenge {
@@ -78,6 +87,8 @@ interface AuthContextType {
   fetchPasskeyOptions: (challengeId: string, challengeToken: string) => Promise<any>;
   verifyPasskeyLogin: (challengeId: string, challengeToken: string, credential: any) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  loginWithGoogleIdToken: (idToken: string, clientType?: string) => Promise<void>;
+  exchangeBluvberryCode: (code: string, redirectUri: string, clientType?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   refreshUser: () => Promise<void>;
@@ -163,7 +174,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
+      phone: data.phone,
       role: data.role,
+      emailVerified: data.emailVerified,
+      premiumActive: data.premiumActive,
+      isPremiumActive: data.premiumActive,
     };
     setUser(userData);
     localStorage.setItem("token", data.token);
@@ -188,6 +203,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Invalid login response");
       }
       applyAuthResponse(data.auth as AuthResponse);
+      // Immediately fetch full user profile (includes premium status, verification, etc.)
+      try {
+        const meRes = await fetchWithTimeout(`${API_BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${(data.auth as AuthResponse).token}` },
+        });
+        if (meRes.ok) {
+          const fullUser: User = await meRes.json();
+          setUser(fullUser);
+          localStorage.setItem("user", JSON.stringify(fullUser));
+        }
+      } catch (e) {
+        // Non-critical — applyAuthResponse already set basic user data
+      }
       return { status: "AUTHENTICATED" };
     }
 
@@ -256,6 +284,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return response.json();
+  };
+
+  const loginWithGoogleIdToken = async (idToken: string, clientType = "REALADMIN") => {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, clientType }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Google sign-in failed");
+    }
+
+    const data: AuthResponse = await response.json();
+    applyAuthResponse(data);
+  };
+
+  const exchangeBluvberryCode = async (
+    code: string,
+    redirectUri: string,
+    clientType = "REALADMIN"
+  ) => {
+    const response = await fetch(`${API_BASE_URL}/auth/bluvberry/exchange`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, redirectUri, clientType }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Bluvberry sign-in failed");
+    }
+
+    const data: AuthResponse = await response.json();
+    applyAuthResponse(data);
   };
 
   const verifyPasskeyLogin = async (
@@ -342,6 +406,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchPasskeyOptions,
         verifyPasskeyLogin,
         register,
+        loginWithGoogleIdToken,
+        exchangeBluvberryCode,
         logout,
         updateUser,
         refreshUser,

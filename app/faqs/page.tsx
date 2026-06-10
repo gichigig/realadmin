@@ -10,24 +10,24 @@ const faqs = [
     category: "General",
     questions: [
       {
-        question: "What is RealEstate?",
+        question: "What is Dwelly (RealEstate)?",
         answer:
-          "RealEstate is a free platform connecting landlords with tenants. Landlords use the web platform to list rental properties and manage advertisements, while tenants use the mobile app to browse listings, save favorites, and contact landlords directly.",
+          "Dwelly is a comprehensive property management platform connecting landlords with tenants. Landlords use the web platform to list rentals and purchase premium sponsorships, while tenants use the mobile app to browse listings, hire helpers, and use the Premium Map Radar.",
       },
       {
-        question: "Is RealEstate free to use?",
+        question: "Is Dwelly free to use?",
         answer:
-          "Yes! RealEstate is 100% free for everyone. Both the web platform for landlords and the mobile app for tenants are completely free. We rely on community donations to keep the platform running and continue adding new features.",
+          "Yes and No. The core platform is completely free. Landlords can post unlimited basic listings for free, and tenants can browse and message landlords for free. However, we offer Premium tools (like Video Listings, Map Radar, and Helper Services) for a fee to enhance your experience.",
       },
       {
-        question: "How does RealEstate make money?",
+        question: "How does Dwelly make money?",
         answer:
-          "We are a donation-supported platform. We believe housing search should be free and accessible to everyone. We rely on generous donations from our community to cover hosting, database, and development costs. We never charge users or sell data.",
+          "We generate revenue through our premium features. Landlords can pay for Video Listings or Targeted Sponsorships to boost their visibility. Tenants can subscribe to Map Radar Premium or pay service fees to hire independent Helpers. We also take a standard platform fee from Helper earnings.",
       },
       {
-        question: "In which areas is RealEstate available?",
+        question: "In which areas is Dwelly available?",
         answer:
-          "RealEstate is currently focused on Kenya, with coverage across major cities including Nairobi, Mombasa, Kisumu, and surrounding areas. We are continuously expanding to more regions.",
+          "Dwelly is currently focused on Kenya, with coverage across major cities including Nairobi, Mombasa, Kisumu, and surrounding areas.",
       },
     ],
   },
@@ -37,27 +37,22 @@ const faqs = [
       {
         question: "How do I list my rental property?",
         answer:
-          "Sign up on the web platform, go to 'Add Rental', and fill in your property details including photos, location, price, number of bedrooms, amenities, and contact information. Your listing will be visible to tenants on the mobile app after approval.",
+          "Sign up on the web platform, go to 'Add Rental', and fill in your property details including photos, location, and price. Basic listings are 100% free.",
       },
       {
-        question: "Can I list multiple properties?",
+        question: "What are Premium Video Listings?",
         answer:
-          "Absolutely! You can list as many rental properties as you have. There are no limits on the number of listings you can create, and it's completely free.",
+          "For 300 KSH, you can upload a video walkthrough of your property. Video listings get 3x more views and help you rent your property significantly faster.",
       },
       {
-        question: "How do I manage my rental listings?",
+        question: "What is Targeted Sponsorship?",
         answer:
-          "From your dashboard, you can view all your listings, edit details, update availability status (Active, Rented, Pending), view analytics, and manage inquiries from potential tenants.",
+          "For 350 KSH, you can sponsor your listing. You can choose 'Local Sponsorship' to project your listing to nearby users on the Map Radar, or 'Search Sponsorship' to pin your listing to the top of area searches.",
       },
       {
-        question: "What are advertisements and how do they work?",
+        question: "What is the Max Visibility Bundle?",
         answer:
-          "Advertisements allow businesses to promote their services to our users. You can create ads that appear in the mobile app. Ads go through a verification process before being published to ensure quality and safety.",
-      },
-      {
-        question: "How do I communicate with potential tenants?",
-        answer:
-          "When tenants are interested in your property, they can message you through the app. You'll receive these messages in your 'Messages' section on the web platform, where you can respond and arrange viewings.",
+          "For 600 KSH, you get the ultimate marketing package: your listing benefits from both Local Radar and Area Search sponsorships.",
       },
     ],
   },
@@ -65,104 +60,64 @@ const faqs = [
     category: "For Tenants (Mobile App)",
     questions: [
       {
-        question: "How do I find rental properties?",
+        question: "What is Map Radar Premium?",
         answer:
-          "Download the RealEstate app from the App Store or Google Play. Browse listings on the Explore page, use filters to narrow down by location, price range, number of bedrooms, and other criteria to find your perfect rental.",
+          "Map Radar Premium is a subscription feature on the mobile app. It uses your phone's compass to project a real-time 'radar cone' on the map, revealing premium listings in the exact direction you are pointing your phone.",
       },
       {
-        question: "Why do I need the mobile app to search for rentals?",
+        question: "How do I hire a Helper?",
         answer:
-          "The mobile app is optimized for tenants to browse, search, and connect with landlords. It offers features like location-based search, saved favorites, instant notifications, and direct messaging — all designed for the best rental hunting experience.",
+          "If you don't have time to search for a rental, you can hire a Helper from the app. You pay their flat service fee securely, and they will curate a list of homes matching your exact needs and schedule viewings for you.",
       },
       {
         question: "Can I save properties I'm interested in?",
         answer:
-          "Yes! Tap the bookmark icon on any listing to save it to your Saved page. You can also set up rental alerts to be notified when new properties matching your criteria are listed.",
+          "Yes! Tap the bookmark icon on any listing to save it to your Favorites page for free.",
       },
       {
         question: "How do I contact a landlord?",
         answer:
-          "When you find a property you're interested in, tap the 'Message' button to send a message directly to the landlord through our secure in-app messaging system. You can discuss details and arrange property viewings.",
-      },
-      {
-        question: "Do I need an account to browse rentals?",
-        answer:
-          "You can browse listings without an account, but creating a free account lets you save favorites, message landlords, set up alerts, and track your rental search history.",
+          "When you find a property, tap the 'Message' button to send a message directly to the landlord through our secure in-app messaging system.",
       },
     ],
   },
   {
-    category: "Lost ID Feature",
+    category: "For Helpers",
     questions: [
       {
-        question: "What is the Lost ID feature?",
+        question: "How do I become a Helper?",
         answer:
-          "As a community service, we offer a Lost ID feature. If someone finds a lost identification document, they can scan and register it on the web platform. People who lost their IDs can search for them through the mobile app.",
+          "Helpers are independent agents verified by our team. Once approved, you get access to the Helper Dashboard on the web platform where you can set your own service rates.",
       },
       {
-        question: "How do I report a found ID?",
+        question: "How do I get paid?",
         answer:
-          "On the web platform, go to 'Scan ID', take a clear photo of the found ID, and our system will extract the relevant information. The ID will be registered in our database so the owner can find it.",
+          "When a tenant hires you, they pay your service fee through the platform. These earnings go to your Helper Balance. You can withdraw your balance directly to M-Pesa at any time.",
+      },
+      {
+        question: "What are the fees and taxes for Helpers?",
+        answer:
+          "Upon withdrawal, Dwelly deducts a 10% platform fee and a 5% KRA withholding tax (which you can use for your tax returns), along with standard M-Pesa withdrawal fees. Our dashboard provides a transparent breakdown before you withdraw.",
+      },
+    ],
+  },
+  {
+    category: "FindMyID (Lost & Found)",
+    questions: [
+      {
+        question: "What is the FindMyID feature?",
+        answer:
+          "As a community service, we have a built-in Lost & Found system. If you find a lost National ID, you can scan it using our web tool, and our OCR system will add it to the database.",
       },
       {
         question: "How do I search for my lost ID?",
         answer:
-          "Download the mobile app and use the Lost ID search feature. Enter your details (name, ID number) to check if someone has found and registered your document. You'll be notified if there's a match.",
+          "Download the mobile app and use the FindMyID search feature. You will be notified if someone scans and uploads an ID matching your details.",
       },
       {
         question: "Is the Lost ID feature free?",
         answer:
-          "Yes, the Lost ID feature is completely free as part of our community service mission. We want to help people reunite with their important documents.",
-      },
-    ],
-  },
-  {
-    category: "Account & Security",
-    questions: [
-      {
-        question: "How do I create an account?",
-        answer:
-          "Click 'Sign Up' on the web platform or download the mobile app and tap 'Create Account'. You'll need to provide your email, create a password, and verify your email address.",
-      },
-      {
-        question: "Is my personal information secure?",
-        answer:
-          "Yes, we take security seriously. All data is encrypted, and we follow industry-standard security practices. We never sell or share your personal information with third parties.",
-      },
-      {
-        question: "How do I reset my password?",
-        answer:
-          "Click 'Forgot Password' on the login page, enter your email address, and we'll send you a password reset link. Follow the instructions in the email to create a new password.",
-      },
-      {
-        question: "Can I delete my account?",
-        answer:
-          "Yes, you can delete your account at any time from the Settings page. Upon deletion, all your personal data and listings will be permanently removed from our systems.",
-      },
-    ],
-  },
-  {
-    category: "Support & Donations",
-    questions: [
-      {
-        question: "How can I support RealEstate?",
-        answer:
-          "As a free platform, we rely on community support. Donations help us pay for database hosting, server costs, storage, and continued development of new features. Donation link coming soon!",
-      },
-      {
-        question: "What do donations pay for?",
-        answer:
-          "Donations cover essential costs: database management for storing listings and user data, server hosting to keep the platform running 24/7, cloud storage for property images, and development costs for building new features and improvements.",
-      },
-      {
-        question: "How do I report a problem or bug?",
-        answer:
-          "Contact our support team through the Help page or send an email describing the issue. Include details like what you were trying to do, what happened, and any error messages you saw.",
-      },
-      {
-        question: "Can I volunteer or contribute to the project?",
-        answer:
-          "We appreciate community involvement! If you're interested in contributing as a developer, designer, or in any other capacity, please reach out through our contact page.",
+          "Yes, this is a completely free community service feature.",
       },
     ],
   },

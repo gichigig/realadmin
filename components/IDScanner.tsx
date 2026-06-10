@@ -67,6 +67,13 @@ export default function IDScanner() {
   const [finderPhone, setFinderPhone] = useState("");
   const [foundLocation, setFoundLocation] = useState("");
   const [collectionLocation, setCollectionLocation] = useState("");
+  const [selectedIdType, setSelectedIdType] = useState<
+    "NATIONAL_ID" | "SCHOOL_ID"
+  >(
+    "NATIONAL_ID",
+  );
+  const [schoolName, setSchoolName] = useState("");
+  const [idHolderName, setIdHolderName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch rate limit status from backend
@@ -440,6 +447,9 @@ export default function IDScanner() {
         idType,
         extractedData,
       });
+      if (extractedData?.name) {
+        setIdHolderName(extractedData.name);
+      }
     } catch (err) {
       setError("Failed to scan image. Please try again with a clearer image.");
       console.error("OCR Error:", err);
@@ -450,8 +460,19 @@ export default function IDScanner() {
 
   // Upload found ID to database
   const uploadFoundId = async () => {
-    if (!result?.extractedData?.idNumber || !result?.extractedData?.name) {
-      setError("Cannot upload: ID number and name are required. Please scan a clearer image.");
+    const resolvedName = idHolderName.trim() || result?.extractedData?.name;
+    if (!result?.extractedData?.idNumber) {
+      setError("Cannot upload: ID number is required. Please scan a clearer image.");
+      return;
+    }
+
+    if (!resolvedName) {
+      setError("Please enter the name on the ID.");
+      return;
+    }
+
+    if (selectedIdType === "SCHOOL_ID" && !schoolName.trim()) {
+      setError("Please enter the school name for School ID.");
       return;
     }
 
@@ -479,7 +500,9 @@ export default function IDScanner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idNumber: result.extractedData.idNumber,
-          fullName: result.extractedData.name,
+          fullName: resolvedName,
+          idType: selectedIdType,
+          schoolName: selectedIdType === "SCHOOL_ID" ? schoolName.trim() : null,
           dateOfBirth: dateOfBirth,
           finderPhone: finderPhone.trim(),
           foundLocation: foundLocation.trim() || null,
@@ -524,6 +547,9 @@ export default function IDScanner() {
     setFinderPhone("");
     setFoundLocation("");
     setCollectionLocation("");
+    setSchoolName("");
+    setIdHolderName("");
+    setSelectedIdType("NATIONAL_ID");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -784,7 +810,7 @@ export default function IDScanner() {
                 )}
 
                 {/* Download App CTA */}
-                {!uploaded && result.extractedData?.idNumber && result.extractedData?.name && (
+                  {!uploaded && result.extractedData?.idNumber && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                     <div className="space-y-4">
                       <div className="flex items-start gap-3">
@@ -799,6 +825,51 @@ export default function IDScanner() {
                       </div>
                       
                       <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            ID Type *
+                          </label>
+                          <select
+                            value={selectedIdType}
+                            onChange={(e) => setSelectedIdType(e.target.value as "NATIONAL_ID" | "SCHOOL_ID")}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          >
+                            <option value="NATIONAL_ID">National ID</option>
+                            <option value="SCHOOL_ID">School ID</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Name on ID {selectedIdType === "SCHOOL_ID" ? "*" : ""}
+                          </label>
+                          <input
+                            type="text"
+                            value={idHolderName}
+                            onChange={(e) => setIdHolderName(e.target.value)}
+                            placeholder="e.g., JOHN DOE"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Used to match search results.
+                          </p>
+                        </div>
+
+                        {selectedIdType === "SCHOOL_ID" && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              School Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={schoolName}
+                              onChange={(e) => setSchoolName(e.target.value)}
+                              placeholder="e.g., Nairobi School"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                          </div>
+                        )}
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Your Phone Number *

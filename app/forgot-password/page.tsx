@@ -135,30 +135,28 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-center mb-8">
-      <div className="flex items-center">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          step === "email" ? "bg-blue-600 text-white" : "bg-green-500 text-white"
-        }`}>
-          {step !== "email" ? "✓" : "1"}
-        </div>
-        <div className={`w-16 h-1 ${step === "email" ? "bg-gray-300" : "bg-green-500"}`} />
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          step === "code" ? "bg-blue-600 text-white" : 
-          step === "password" ? "bg-green-500 text-white" : "bg-gray-300 text-gray-500"
-        }`}>
-          {step === "password" ? "✓" : "2"}
-        </div>
-        <div className={`w-16 h-1 ${step === "password" ? "bg-green-500" : "bg-gray-300"}`} />
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          step === "password" ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-500"
-        }`}>
-          3
-        </div>
-      </div>
-    </div>
-  );
+  const renderBreadcrumbs = () => {
+    const items: { key: Step; label: string }[] = [
+      { key: "email", label: "Email" },
+      { key: "code", label: "Code" },
+      { key: "password", label: "Password" },
+    ];
+
+    return (
+      <nav className="flex items-center justify-center mb-8 text-sm" aria-label="Breadcrumb">
+        {items.map((it, idx) => (
+          <div key={it.key} className="flex items-center">
+            <span className={it.key === step ? "font-semibold text-blue-600" : "text-gray-500"}>
+              {it.label}
+            </span>
+            {idx < items.length - 1 && (
+              <span className="mx-3 text-gray-400">&gt;</span>
+            )}
+          </div>
+        ))}
+      </nav>
+    );
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -172,7 +170,7 @@ export default function ForgotPasswordPage() {
           </h2>
         </div>
 
-        {renderStepIndicator()}
+        {renderBreadcrumbs()}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">

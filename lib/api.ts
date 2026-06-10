@@ -45,6 +45,8 @@ export interface Rental {
   description: string;
   price: number;
   address: string;
+  latitude?: number;
+  longitude?: number;
   // Kenya location fields
   ward: string;
   constituency: string;
@@ -57,7 +59,11 @@ export interface Rental {
   propertyType: PropertyType;
   status: RentalStatus;
   imageUrls: string[];
+  videoUrl?: string;
+  compoundVideoUrl?: string;
+  cardDisplayPreference?: string;
   amenities: string[];
+  hashtags: string[];
   petsAllowed: boolean;
   parkingAvailable: boolean;
   availableFrom: string;
@@ -79,7 +85,21 @@ export interface Rental {
   ownerVerificationStatus?: string | null;
   // Owner contact info
   ownerPhone?: string | null;
+  // Video listing
+  hasVideo?: boolean;
+  videoUrl?: string | null;
+  videoPaidAt?: string | null;
+  compoundVideoUrl?: string | null;
+  cardDisplayPreference?: "ONE_PICTURE" | "DOUBLE_PICTURE" | "THREE_PICTURES" | "VIDEO" | null;
+  // Sponsorship
+  sponsorshipType?: "NONE" | "LOCAL" | "SEARCH" | "BOTH" | null;
+  sponsorshipPaidAt?: string | null;
+  sponsorshipExpiresAt?: string | null;
+  sponsorshipAmount?: number | null;
+  isSponsored?: boolean;
 }
+
+export type SponsorshipType = "LOCAL" | "SEARCH" | "BOTH";
 
 export type PropertyType = "APARTMENT" | "HOUSE" | "CONDO" | "TOWNHOUSE" | "STUDIO" | "BEDSITTER" | "SINGLE_ROOM" | "DOUBLE_ROOM" | "ROOM" | "VILLA" | "AIR_BNB" | "PENTHOUSE" | "DUPLEX" | "OFFICE" | "SHOP" | "WAREHOUSE" | "OTHER";
 export type RentalStatus = "ACTIVE" | "RENTED" | "PENDING" | "INACTIVE";
@@ -180,7 +200,11 @@ export interface MonthlyTrend {
 export const rentalsApi = {
   getAll: async (page = 0, size = 10, sortBy = "createdAt", sortDirection = "DESC"): Promise<PageResponse<Rental>> => {
     const response = await fetch(
-      `${API_BASE_URL}/rentals?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`
+      `${API_BASE_URL}/rentals?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+      { 
+        headers: getAuthHeaders(),
+        cache: 'no-store' 
+      }
     );
     if (!response.ok) throw new Error("Failed to fetch rentals");
     return response.json();
@@ -189,6 +213,12 @@ export const rentalsApi = {
   getById: async (id: number): Promise<Rental> => {
     const response = await fetch(`${API_BASE_URL}/rentals/${id}`);
     if (!response.ok) throw new Error("Failed to fetch rental");
+    return response.json();
+  },
+
+  getPopularHashtags: async (): Promise<string[]> => {
+    const response = await fetch(`${API_BASE_URL}/rentals/hashtags/popular`);
+    if (!response.ok) throw new Error("Failed to fetch popular hashtags");
     return response.json();
   },
 
@@ -425,8 +455,13 @@ export const filesApi = {
     if (filename.startsWith('http://') || filename.startsWith('https://')) {
       return filename;
     }
+    // If it starts with /api/files/, strip it so we don't duplicate
+    let cleanFilename = filename;
+    if (filename.startsWith('/api/files/')) {
+      cleanFilename = filename.replace('/api/files/', '');
+    }
     // Otherwise, construct the local API URL
-    return `${API_BASE_URL}/files/${filename}`;
+    return `${API_BASE_URL}/files/${cleanFilename}`;
   },
 } as FilesApi;
 
@@ -577,6 +612,19 @@ export const accountApi = {
     return response.json();
   },
 
+  setPrimaryRole: async (role: string): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/auth/role`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ role }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Failed to set role" }));
+      throw new Error(error.message || "Failed to set role");
+    }
+    return response.json();
+  },
+
   changePassword: async (data: ChangePasswordData): Promise<{ message: string }> => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: "POST",
@@ -690,6 +738,9 @@ export interface AdminUser {
   verificationSubmittedAt: string | null;
   verifiedAt: string | null;
   verificationNotes: string | null;
+  blocked: boolean;
+  blockedReason: string | null;
+  blockedAt: string | null;
   rentalCount: number;
   createdAt: string;
   updatedAt: string;
@@ -803,6 +854,160 @@ export const superAdminApi = {
     if (!response.ok) {
       throw new Error("Failed to update user role");
     }
+    return response.json();
+  },
+};
+
+// ─── Rental Payment (Video & Sponsorship) API ──────────────────────────────
+
+export interface RentalPaymentInitResponse {
+  success: boolean;
+  checkoutRequestId?: string;
+  merchantRequestId?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface RentalPaymentStatus {
+  status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  paymentType: string;
+  amount: number;
+  mpesaReceipt: string;
+  resultDesc: string;
+}
+
+export interface SponsorshipStatus {
+  sponsorshipType: string;
+  isSponsored: boolean;
+  sponsorshipAmount: number;
+  sponsorshipPaidAt: string;
+  sponsorshipExpiresAt: string;
+  hasVideo: boolean;
+  videoUrl: string;
+  videoPaidAt: string;
+}
+
+export const rentalPaymentApi = {
+  /** Initiate KSH 300 video unlock via M-Pesa STK push */
+  payForVideo: async (rentalId: number, phone: string): Promise<RentalPaymentInitResponse> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/rentals/${rentalId}/pay/video`, {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+    const data = await response.json();
+    if (!response.ok) return { success: false, error: data.error || "Payment failed" };
+    return data;
+  },
+
+  /** Initiate sponsorship STK push: type = LOCAL | SEARCH | BOTH (350/350/600 KSH) */
+  payForSponsorship: async (
+    rentalId: number,
+    phone: string,
+    sponsorshipType: SponsorshipType
+  ): Promise<RentalPaymentInitResponse> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/rentals/${rentalId}/pay/sponsor`, {
+      method: "POST",
+      body: JSON.stringify({ phone, sponsorshipType }),
+    });
+    const data = await response.json();
+    if (!response.ok) return { success: false, error: data.error || "Payment failed" };
+    return data;
+  },
+
+  /** Poll M-Pesa payment status */
+  pollStatus: async (rentalId: number, checkoutRequestId: string): Promise<RentalPaymentStatus> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/rentals/${rentalId}/pay/status/${checkoutRequestId}`
+    );
+    if (!response.ok) throw new Error("Failed to get payment status");
+    return response.json();
+  },
+
+  /** Get current sponsorship & video status for a rental */
+  getSponsorshipStatus: async (rentalId: number): Promise<SponsorshipStatus> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/rentals/${rentalId}/sponsorship`);
+    if (!response.ok) throw new Error("Failed to get sponsorship status");
+    return response.json();
+  },
+};
+
+
+export interface HelperStats {
+  total: number;
+  active: number;
+  blocked: number;
+  verified: number;
+  pending: number;
+}
+
+export interface CreateHelperRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password: string;
+}
+
+export const helpersApi = {
+  getAll: async (
+    page = 0,
+    size = 20,
+    verificationStatus?: string,
+    blocked?: boolean
+  ): Promise<PageResponse<AdminUser>> => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (verificationStatus) params.append("verificationStatus", verificationStatus);
+    if (blocked !== undefined) params.append("blocked", blocked.toString());
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/super-admin/helpers?${params}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch helpers");
+    return response.json();
+  },
+
+  getStats: async (): Promise<HelperStats> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/super-admin/helpers/stats`);
+    if (!response.ok) throw new Error("Failed to fetch helper stats");
+    return response.json();
+  },
+
+  create: async (data: CreateHelperRequest): Promise<{ message: string; id: number }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/super-admin/helpers`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    if (response.status === 409) throw new Error("Email is already registered");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).error || "Failed to create helper");
+    }
+    return response.json();
+  },
+
+  block: async (helperId: number, reason?: string): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/super-admin/helpers/${helperId}/block`,
+      { method: "POST", body: JSON.stringify({ reason: reason ?? "" }) }
+    );
+    if (!response.ok) throw new Error("Failed to block helper");
+    return response.json();
+  },
+
+  unblock: async (helperId: number): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/super-admin/helpers/${helperId}/unblock`,
+      { method: "POST" }
+    );
+    if (!response.ok) throw new Error("Failed to unblock helper");
+    return response.json();
+  },
+
+  remove: async (helperId: number): Promise<{ message: string }> => {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/super-admin/helpers/${helperId}`,
+      { method: "DELETE" }
+    );
+    if (!response.ok) throw new Error("Failed to remove helper");
     return response.json();
   },
 };
@@ -1761,6 +1966,15 @@ export const authApi = {
     });
     return response.json();
   },
+
+  googleLogin: async (idToken: string): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, clientType: "WEB" }),
+    });
+    return response.json();
+  },
 };
 
 // M-Pesa Types
@@ -1878,4 +2092,120 @@ export const mpesaApi = {
     
     return null;
   },
+};
+
+export const premiumApi = {
+  initiateSTKPush: async (phoneNumber: string, amount: number = 300): Promise<MpesaStkResponse> => {
+    const formattedPhone = mpesaApi.formatPhoneNumber(phoneNumber);
+    if (!formattedPhone) {
+      return { success: false, message: 'Invalid phone number format' };
+    }
+    const response = await authenticatedFetch(`${API_BASE_URL}/premium/stk-push`, {
+      method: "POST",
+      body: JSON.stringify({ phoneNumber: formattedPhone, amount }),
+    });
+    return response.json();
+  },
+  checkStatus: async (checkoutRequestId: string): Promise<MpesaStatusResponse | null> => {
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/premium/status/${checkoutRequestId}`);
+      if (response.ok) return response.json();
+      return null;
+    } catch {
+      return null;
+    }
+  },
+  waitForPayment: async (
+    checkoutRequestId: string,
+    onUpdate: (status: MpesaStatusResponse) => void,
+    maxAttempts: number = 40,
+    intervalMs: number = 3000
+  ): Promise<MpesaStatusResponse | null> => {
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      const status = await premiumApi.checkStatus(checkoutRequestId);
+      if (status) {
+        onUpdate(status);
+        if (status.status !== 'PENDING') return status;
+      }
+      attempts++;
+    }
+    return null;
+  },
+};
+
+export const locationsApi = {
+  getTree: async () => {
+    const response = await fetch(`${API_BASE_URL}/locations/tree`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch location tree");
+    }
+    return response.json();
+  }
+};
+
+export const helperApi = {
+  getDashboard: async () => {
+    const response = await fetch(`${API_BASE_URL}/helper/dashboard`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.error || "Failed to fetch dashboard");
+    }
+    return response.json();
+  },
+
+  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[] }) => {
+    const response = await fetch(`${API_BASE_URL}/helper/profile`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.error || "Failed to update profile");
+    }
+    return response.json();
+  },
+
+  withdraw: async (amount: number) => {
+    const response = await fetch(`${API_BASE_URL}/helper/withdraw`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ amount }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.error || "Failed to withdraw");
+    }
+    return response.json();
+  },
+};
+
+export const helperJobsApi = {
+  getHelperJobs: async () => {
+    const response = await fetch(`${API_BASE_URL}/helper-jobs/helper`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error("Failed to fetch jobs");
+    return response.json();
+  },
+  getDisputes: async () => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/disputes`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error("Failed to fetch disputes");
+    return response.json();
+  },
+  resolveDispute: async (jobId: number, action: "REFUND_CLIENT" | "PAY_HELPER") => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/disputes/${jobId}/resolve`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ action }),
+    });
+    if (!response.ok) throw new Error("Failed to resolve dispute");
+    return response.json();
+  }
 };

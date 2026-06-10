@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BuildingOfficeIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { authApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 export default function EmailVerificationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated, updateUser } = useAuth();
   const emailParam = searchParams.get("email") || "";
   
   const [email, setEmail] = useState(emailParam);
@@ -117,9 +119,17 @@ export default function EmailVerificationPage() {
       const response = await authApi.verifyEmail(email, codeToVerify);
       if (response.success) {
         setSuccess(true);
-        // Redirect to login after 2 seconds
+        if (isAuthenticated) {
+          updateUser({ emailVerified: true });
+        }
+        // Redirect after 2 seconds
         setTimeout(() => {
-          router.push("/login?verified=true");
+          if (isAuthenticated) {
+            const workspace = localStorage.getItem("workspaceMode");
+            router.push(workspace === "helper" ? "/helper" : "/");
+          } else {
+            router.push("/login?verified=true");
+          }
         }, 2000);
       } else {
         setError(response.message || "Invalid or expired code");
@@ -142,7 +152,7 @@ export default function EmailVerificationPage() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Email Verified!</h2>
           <p className="text-gray-600">
-            Your email has been successfully verified. Redirecting to login...
+            Your email has been successfully verified. Redirecting...
           </p>
           <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>

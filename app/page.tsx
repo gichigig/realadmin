@@ -13,6 +13,8 @@ import {
   HomeIcon
 } from "@heroicons/react/24/outline";
 
+import PremiumBanner from "@/components/PremiumBanner";
+
 export default function Dashboard() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading, isSuperAdmin } = useAuth();
@@ -84,7 +86,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-8">
+      <PremiumBanner>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600">
           {isSuperAdmin 
@@ -96,7 +98,7 @@ export default function Dashboard() {
             Super Admin - Viewing All Properties
           </span>
         )}
-      </div>
+      </PremiumBanner>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -161,19 +163,19 @@ export default function Dashboard() {
           <div className="space-y-4 text-sm text-gray-600">
             <div className="flex items-start">
               <span className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-bold mr-3">1</span>
-              <p>Make sure the Spring Boot backend is running on port 8080</p>
+              <p>Complete your landlord profile and verify your phone number</p>
             </div>
             <div className="flex items-start">
               <span className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-bold mr-3">2</span>
-              <p>Add new rental properties with photos and details</p>
+              <p>Add new rental properties with high-quality photos and details</p>
             </div>
             <div className="flex items-start">
               <span className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-bold mr-3">3</span>
-              <p>Manage listing status (Active, Pending, Rented, Inactive)</p>
+              <p>Boost your listings with premium features to reach more tenants</p>
             </div>
             <div className="flex items-start">
               <span className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-bold mr-3">4</span>
-              <p>View analytics to track your rental performance</p>
+              <p>Manage listing status and chat directly with interested tenants</p>
             </div>
           </div>
         </div>

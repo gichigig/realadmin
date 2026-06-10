@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Sidebar from "./Sidebar";
 import LandingPage from "./LandingPage";
 import { Bars3Icon } from "@heroicons/react/24/outline";
+import GoogleAdBanner from "./GoogleAdBanner";
 
 const publicPaths = [
   "/login", 
@@ -18,11 +19,13 @@ const publicPaths = [
   "/forgot-password",
   "/verify-email",
   "/landing",
+  "/payments/mpesa",
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoading, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { isLoading, isAuthenticated, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -42,6 +45,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Redirect unverified users
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && user.emailVerified === false && !isPublicPath) {
+      router.push(`/verify-email?email=${encodeURIComponent(user.email)}`);
+    }
+  }, [isLoading, isAuthenticated, user, isPublicPath, router]);
+
   // Save collapsed state to localStorage
   const handleToggleCollapse = () => {
     const newState = !sidebarCollapsed;
@@ -49,7 +59,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(newState));
   };
 
-  if (isLoading) {
+  // Public pages render immediately — no auth check, no sidebar, no spinner
+  if (isPublicPath) {
+    return <>{children}</>;
+  }
+
+  if (isLoading || (isAuthenticated && user && user.emailVerified === false)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -60,11 +75,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Show landing page for unauthenticated users on home page
   if (isHomePage && !isAuthenticated) {
     return <LandingPage />;
-  }
-
-  // Don't show sidebar on public pages
-  if (isPublicPath) {
-    return <>{children}</>;
   }
 
   return (
@@ -93,6 +103,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">{children}</main>
+        
+        {/* Ad Banner at the bottom of the screen */}
+        {!(user?.isPremiumActive || user?.premiumActive) && (
+          <div className="flex-shrink-0 px-4 md:px-6 lg:px-8 bg-gray-50 border-t border-gray-200">
+            <GoogleAdBanner />
+          </div>
+        )}
       </div>
     </div>
   );

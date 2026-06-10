@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth, MfaChallenge } from "@/lib/auth-context";
 import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { GoogleLogin } from "@react-oauth/google";
 
 type MfaMethod = "PASSKEY" | "TOTP" | "RECOVERY";
 
@@ -28,6 +29,9 @@ const encodeBase64Url = (buffer: ArrayBuffer): string => {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+const BLUVBERRY_LOGO_SRC = "/WhatsApp%20Image%202026-05-30%20at%2018.05.36.jpeg";
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +41,8 @@ export default function LoginPage() {
     verifyRecoveryLogin,
     fetchPasskeyOptions,
     verifyPasskeyLogin,
+    loginWithGoogleIdToken,
+    exchangeBluvberryCode,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -44,10 +50,39 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [bluvberryLoading, setBluvberryLoading] = useState(false);
 
   const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
   const [mfaMethod, setMfaMethod] = useState<MfaMethod>("TOTP");
   const [mfaCode, setMfaCode] = useState("");
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const requiresMfa = !!mfaChallenge;
+
+  const handleSuccessfulAuth = () => {
+    const redirect = searchParams.get("redirect");
+    if (redirect) {
+      router.push(redirect);
+      return;
+    }
+    const userJson = localStorage.getItem("user");
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        if (user.primaryRole) {
+          localStorage.setItem("workspaceMode", user.primaryRole);
+          router.push(user.primaryRole === "helper" ? "/helper" : "/");
+          return;
+        }
+      } catch {}
+    }
+    const wsMode = localStorage.getItem("workspaceMode");
+    if (wsMode) {
+       router.push(wsMode === "helper" ? "/helper" : "/");
+       return;
+    }
+    router.push("/choose-role");
+  };
 
   useEffect(() => {
     if (searchParams.get("reset") === "success") {
@@ -58,6 +93,46 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      setError("Google sign-in failed: No credential returned");
+      return;
+    }
+    setGoogleLoading(true);
+    setError("");
+    try {
+      await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
+      handleSuccessfulAuth();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const provider = searchParams.get("provider");
+    const code = searchParams.get("code");
+    if (provider !== "bluvberry" || !code || bluvberryLoading) {
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/login?provider=bluvberry`;
+    setBluvberryLoading(true);
+    setError("");
+
+    exchangeBluvberryCode(code, redirectUri, "REALADMIN")
+      .then(() => {
+        handleSuccessfulAuth();
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Bluvberry sign-in failed");
+      })
+      .finally(() => {
+        setBluvberryLoading(false);
+      });
+  }, [searchParams, exchangeBluvberryCode, bluvberryLoading, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -66,7 +141,7 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
       if (result.status === "AUTHENTICATED") {
-        router.push("/");
+        handleSuccessfulAuth();
         return;
       }
       if (!result.challenge) {
@@ -134,7 +209,7 @@ export default function LoginPage() {
         });
       }
 
-      router.push("/");
+      handleSuccessfulAuth();
     } catch (err) {
       setError(err instanceof Error ? err.message : "MFA verification failed");
     } finally {
@@ -142,7 +217,28 @@ export default function LoginPage() {
     }
   };
 
-  const requiresMfa = !!mfaChallenge;
+  const handleBluvberryLogin = async () => {
+    setError("");
+    setBluvberryLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/auth/bluvberry/authorize?clientType=REALADMIN`
+      );
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.message || "Bluvberry sign-in failed");
+      }
+      const data = await response.json();
+      if (!data?.url) {
+        throw new Error("Bluvberry sign-in URL is missing");
+      }
+      window.location.href = data.url as string;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bluvberry sign-in failed");
+      setBluvberryLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -276,11 +372,59 @@ export default function LoginPage() {
           </button>
 
           {!requiresMfa && (
-            <div className="text-center text-sm text-gray-500">
-              <p>Demo credentials:</p>
-              <p className="font-mono">admin@realestate.com / admin123</p>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-200"></div>
+                <span className="text-xs text-gray-500">OR</span>
+                <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+              <div className="flex items-start justify-center gap-8">
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBluvberryLogin}
+                    disabled={bluvberryLoading || googleLoading || loading}
+                    aria-label="Login with Bluvberry"
+                    className="h-14 w-14 rounded-full bg-white flex items-center justify-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bluvberryLoading ? (
+                      <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <span className="h-10 w-10 rounded-full overflow-hidden">
+                        <img
+                          src={BLUVBERRY_LOGO_SRC}
+                          alt="Bluvberry"
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                    )}
+                  </button>
+                  <span className="text-xs text-gray-600">Bluvberry</span>
+                </div>
+                {googleClientId ? (
+                  <div className="flex flex-col items-center gap-2 h-14 justify-center mt-2">
+                    <GoogleLogin
+                      onSuccess={handleGoogleSuccess}
+                      onError={() => setError("Google sign-in failed")}
+                      type="icon"
+                      shape="circle"
+                      size="large"
+                    />
+                    <span className="text-xs text-gray-600">Google</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-14 w-14 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center text-xs text-gray-400">
+                      G
+                    </div>
+                    <span className="text-xs text-gray-400">Google</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+     
         </form>
       </div>
     </div>

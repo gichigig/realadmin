@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { rentalsApi, filesApi, Rental, PropertyType } from "@/lib/api";
-import { PhotoIcon, XMarkIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon, ArrowLeftIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import { StarIcon } from "@heroicons/react/24/solid";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
 import { LocationSearchResult } from "@/lib/kenya-locations";
+import dynamic from "next/dynamic";
+import HashtagsInput from "@/components/HashtagsInput";
+
+const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -57,8 +63,12 @@ export default function EditRentalPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [images, setImages] = useState<{ url: string; filename: string }[]>([]);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [formData, setFormData] = useState<Partial<Rental>>({});
+  const [uploadingCompoundVideo, setUploadingCompoundVideo] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const fetchRental = async () => {
@@ -66,6 +76,7 @@ export default function EditRentalPage() {
         const data = await rentalsApi.getById(Number(params.id));
         setFormData(data);
         setSelectedAmenities(data.amenities || []);
+        setHashtags(data.hashtags || []);
         setImages(
           (data.imageUrls || []).map((url) => ({
             url,
@@ -160,8 +171,87 @@ export default function EditRentalPage() {
     }
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!isAuthenticated) {
+      alert("Please login to upload videos");
+      router.push("/login");
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const result = await filesApi.uploadVideo(file);
+      setFormData({ ...formData, videoUrl: result.url });
+    } catch (error) {
+      console.error("Failed to upload video:", error);
+      alert(error instanceof Error ? error.message : "Failed to upload video");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const handleRemoveVideo = async () => {
+    try {
+      if (formData.videoUrl) {
+        await filesApi.deleteByUrl(formData.videoUrl);
+      }
+      setFormData({ ...formData, videoUrl: undefined });
+    } catch (error) {
+      console.error("Failed to delete video:", error);
+      setFormData({ ...formData, videoUrl: undefined });
+    }
+  };
+
+  const handleCompoundVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCompoundVideo(true);
+    try {
+      const result = await filesApi.upload(file);
+      setFormData({ ...formData, compoundVideoUrl: result.url });
+    } catch (error) {
+      console.error("Failed to upload compound video:", error);
+      alert("Failed to upload compound video");
+    } finally {
+      setUploadingCompoundVideo(false);
+    }
+  };
+
+  const handleRemoveCompoundVideo = async () => {
+    try {
+      if (formData.compoundVideoUrl) {
+        const filename = formData.compoundVideoUrl.split("/").pop();
+        if (filename) await filesApi.delete(filename);
+      }
+      setFormData({ ...formData, compoundVideoUrl: null });
+    } catch (error) {
+      console.error("Failed to delete compound video:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const validationErrors: string[] = [];
+    if (images.length === 0) {
+      validationErrors.push("At least one picture is required.");
+    }
+    
+    if (user?.isPremiumActive || user?.premiumActive) {
+      if (!formData.videoUrl && !formData.compoundVideoUrl) {
+        validationErrors.push("Premium landlords must upload a Main Listing Video or Compound Video.");
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      alert("Please fix the following:\n\n" + validationErrors.join("\n"));
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -175,9 +265,14 @@ export default function EditRentalPage() {
       const rental: Rental = {
         ...formData as Rental,
         imageUrls: images.map((img) => img.url),
+        hasVideo: (formData.videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
+        hashtags: hashtags,
         // Convert date to full ISO datetime for backend LocalDateTime
         availableFrom: normalizedAvailableFrom,
+        // Use map coordinates or fallback to Nairobi
+        latitude: formData.latitude || -1.2921,
+        longitude: formData.longitude || 36.8219,
       };
 
       await rentalsApi.update(Number(params.id), rental);
@@ -356,6 +451,18 @@ export default function EditRentalPage() {
               />
               <p className="mt-1 text-xs text-gray-500">Help potential tenants find the property easily</p>
             </div>
+            <div className="md:col-span-2 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pinpoint Location on Map</label>
+              <p className="text-xs text-gray-500 mb-3">Click on the map to set the exact location coordinates for this rental.</p>
+              <MapPicker 
+                latitude={formData.latitude || -1.2921} 
+                longitude={formData.longitude || 36.8219} 
+                onChange={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))} 
+              />
+              {formData.latitude && formData.longitude && (
+                <p className="mt-2 text-xs text-green-600">Coordinates selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -453,6 +560,11 @@ export default function EditRentalPage() {
           </div>
         </div>
 
+        {/* Hashtags */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <HashtagsInput hashtags={hashtags} onChange={setHashtags} />
+        </div>
+
         {/* Images */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Images</h2>
@@ -461,7 +573,7 @@ export default function EditRentalPage() {
             {images.map((image, index) => (
               <div key={index} className="relative group">
                 <img
-                  src={image.url}
+                  src={filesApi.getUrl(image.url)}
                   alt={`Property ${index + 1}`}
                   className="w-full h-32 object-cover rounded-lg"
                 />
@@ -496,6 +608,135 @@ export default function EditRentalPage() {
               disabled={uploadingImages}
             />
           </label>
+        </div>
+
+        {/* Premium Video Features */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full uppercase tracking-wide font-bold mr-1">Premium</span>
+              <VideoCameraIcon className="w-5 h-5 text-blue-800" /> Video Features
+            </h2>
+          </div>
+          
+          {(user?.isPremiumActive || user?.premiumActive) ? (
+            <div className="space-y-8">
+              <p className="text-sm text-blue-700">Enhance your listing with video content to stand out to tenants.</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Main Listing Video */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Main Listing Video</label>
+                  <p className="text-xs text-gray-500 mb-3">Upload a walk-through or main showcase video (max 50MB).</p>
+                  
+                  {formData.videoUrl ? (
+                    <div className="relative group">
+                      <video 
+                        src={filesApi.getUrl(formData.videoUrl)} 
+                        controls 
+                        className="w-full h-40 object-cover rounded-lg bg-black"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveVideo}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                      <div className="flex flex-col items-center justify-center">
+                        {uploadingVideo ? (
+                          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                        ) : (
+                          <>
+                            <VideoCameraIcon className="w-10 h-10 text-blue-400" />
+                            <p className="mt-2 text-sm text-blue-600 font-medium">Upload Listing Video</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoUpload}
+                        className="hidden"
+                        disabled={uploadingVideo}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Display Preference Settings */}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tenant Card Display Preference</label>
+                    <select
+                      name="cardDisplayPreference"
+                      value={formData.cardDisplayPreference || "ONE_PICTURE"}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    >
+                      <option value="ONE_PICTURE">1 Picture</option>
+                      <option value="DOUBLE_PICTURE">Double Pictures</option>
+                      <option value="THREE_PICTURES">3 Pictures</option>
+                      <option value="VIDEO">Video Listing (Requires Main Listing Video)</option>
+                    </select>
+                    <p className="mt-2 text-xs text-blue-600">
+                      Choose how your property appears in the tenant's feed.
+                    </p>
+                  </div>
+
+                  {formData.cardDisplayPreference !== "VIDEO" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Circular Autoplay Video</label>
+                      <p className="text-xs text-gray-500 mb-3">Small hovering video shown over your pictures.</p>
+                      {formData.compoundVideoUrl ? (
+                        <div className="relative rounded-lg overflow-hidden border border-gray-200">
+                          <video src={filesApi.getUrl(formData.compoundVideoUrl)} controls className="w-full h-32 object-cover bg-black" />
+                          <button
+                            type="button"
+                            onClick={handleRemoveCompoundVideo}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                          <div className="flex flex-col items-center justify-center">
+                            {uploadingCompoundVideo ? (
+                              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                            ) : (
+                              <>
+                                <PhotoIcon className="w-8 h-8 text-blue-400" />
+                                <p className="mt-2 text-sm text-blue-600 font-medium text-center px-4">Upload Compound Video</p>
+                              </>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={handleCompoundVideoUpload}
+                            className="hidden"
+                            disabled={uploadingCompoundVideo}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg p-6 text-center shadow-sm">
+              <VideoCameraIcon className="w-12 h-12 text-blue-200 mx-auto mb-3" />
+              <h3 className="text-sm font-medium text-gray-900">Premium Video Features Locked</h3>
+              <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto mb-4">
+                Upgrade to Landlord Pro to create immersive Video Listings and Circular Autoplay overlays that attract more tenants.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Submit */}
