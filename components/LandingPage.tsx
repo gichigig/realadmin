@@ -5,7 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 import DonateModal from "@/components/DonateModal";
+import { useAuth } from "@/lib/auth-context";
 import {
+  Bars3Icon,
+  XMarkIcon,
   BuildingOfficeIcon,
   ChartBarIcon,
   DevicePhoneMobileIcon,
@@ -15,16 +18,20 @@ import {
   HomeModernIcon,
   SparklesIcon,
   ArrowTrendingUpIcon,
-  IdentificationIcon,
   HeartIcon,
+  IdentificationIcon,
+  UserPlusIcon,
+  ArrowDownTrayIcon,
+  MagnifyingGlassIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 
 // Dynamically import AnimatedGlobe to avoid SSR issues with canvas
 const AnimatedGlobe = dynamic(() => import("@/components/AnimatedGlobe"), {
   ssr: false,
   loading: () => (
-    <div className="w-[400px] h-[400px] md:w-[500px] md:h-[500px] flex items-center justify-center">
-      <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
   ),
 });
@@ -64,6 +71,8 @@ const features = [
 
 export default function LandingPage() {
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-white">
@@ -73,12 +82,12 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <HomeModernIcon className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center justify-center">
+                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl shadow-md border border-gray-100 bg-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">RealEstate</span>
+              <span className="text-2xl font-bold text-gray-900 tracking-tight">IshinaDwelly</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               <Link href="/help" className="text-gray-600 hover:text-gray-900 transition-colors">
@@ -91,21 +100,101 @@ export default function LandingPage() {
                 Download App
               </Link>
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="text-gray-600 hover:text-gray-900 font-medium"
+            {/* Desktop Auth Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              {isAuthenticated ? (
+                <Link
+                  href="/rentals"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  My Rentals
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-gray-600 hover:text-gray-900 font-medium"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Mobile Hamburger Button */}
+            <div className="md:hidden flex items-center">
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 -mr-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Toggle menu"
               >
-                Sign In
-              </Link>
-              <Link
-                href="/signup"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Get Started
-              </Link>
+                {isMobileMenuOpen ? (
+                  <XMarkIcon className="w-6 h-6" />
+                ) : (
+                  <Bars3Icon className="w-6 h-6" />
+                )}
+              </button>
             </div>
           </div>
+
+          {/* Mobile Menu Dropdown */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-gray-100 bg-white">
+              <div className="flex flex-col space-y-4 px-2 pb-4">
+                <Link 
+                  href="/help" 
+                  className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  How it Works
+                </Link>
+                <Link 
+                  href="/faqs" 
+                  className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  FAQs
+                </Link>
+                <Link 
+                  href="/help#download" 
+                  className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Download App
+                </Link>
+                <div className="h-px bg-gray-100 my-2"></div>
+                {isAuthenticated ? (
+                  <Link 
+                    href="/rentals" 
+                    className="w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    My Rentals
+                  </Link>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <Link 
+                      href="/login" 
+                      className="w-full text-center px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    >
+                      Sign In
+                    </Link>
+                    <Link 
+                      href="/signup" 
+                      className="w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Get Started
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -190,12 +279,12 @@ export default function LandingPage() {
             {features.map((feature) => (
               <div
                 key={feature.name}
-                className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+                className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md border border-gray-100 group cursor-pointer transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                  <feature.icon className="w-6 h-6 text-blue-600" />
+                <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6 transform group-hover:-translate-y-2 group-hover:scale-110 group-hover:bg-blue-600 group-hover:shadow-lg transition-all duration-300 rotate-3 group-hover:rotate-0">
+                  <feature.icon className="w-7 h-7 text-blue-600 group-hover:text-white transform group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
                   {feature.name}
                 </h3>
                 <p className="text-gray-600">{feature.description}</p>
@@ -226,26 +315,26 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
-                  step: "1",
+                  icon: UserPlusIcon,
                   title: "Create Your Account",
                   description: "Sign up for free on the web platform and set up your landlord profile.",
                 },
                 {
-                  step: "2",
+                  icon: HomeModernIcon,
                   title: "List Your Rentals",
                   description: "Add your rental properties with photos, details, pricing, and location to attract tenants.",
                 },
                 {
-                  step: "3",
+                  icon: MegaphoneIcon,
                   title: "Manage & Advertise",
                   description: "Create ads to boost visibility, manage inquiries, and track your listings' performance.",
                 },
-              ].map((item) => (
-                <div key={item.step} className="text-center">
-                  <div className="w-16 h-16 bg-blue-600 text-white text-2xl font-bold rounded-full flex items-center justify-center mx-auto mb-6">
-                    {item.step}
+              ].map((item, index) => (
+                <div key={index} className="text-center group cursor-pointer">
+                  <div className="w-20 h-20 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 transform group-hover:-translate-y-3 group-hover:scale-110 group-hover:shadow-xl group-hover:bg-blue-500 transition-all duration-300 shadow-md rotate-3 group-hover:rotate-0">
+                    <item.icon className="w-10 h-10 transform group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
                     {item.title}
                   </h3>
                   <p className="text-gray-600">{item.description}</p>
@@ -263,26 +352,26 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
-                  step: "1",
+                  icon: ArrowDownTrayIcon,
                   title: "Download the App",
-                  description: "Get the RealEstate app from the App Store or Google Play — it's completely free.",
+                  description: "Get the IshinaDwelly app from the App Store or Google Play — it's completely free.",
                 },
                 {
-                  step: "2",
+                  icon: MagnifyingGlassIcon,
                   title: "Browse & Search",
                   description: "Explore thousands of rental listings, filter by location, price, and amenities.",
                 },
                 {
-                  step: "3",
+                  icon: ChatBubbleLeftRightIcon,
                   title: "Connect & Move In",
                   description: "Save favorites, message landlords directly, and find your perfect rental home.",
                 },
-              ].map((item) => (
-                <div key={item.step} className="text-center">
-                  <div className="w-16 h-16 bg-gray-900 text-white text-2xl font-bold rounded-full flex items-center justify-center mx-auto mb-6">
-                    {item.step}
+              ].map((item, index) => (
+                <div key={index} className="text-center group cursor-pointer">
+                  <div className="w-20 h-20 bg-gray-900 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 transform group-hover:-translate-y-3 group-hover:scale-110 group-hover:shadow-xl group-hover:bg-gray-800 transition-all duration-300 shadow-md -rotate-3 group-hover:rotate-0">
+                    <item.icon className="w-10 h-10 transform group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
                     {item.title}
                   </h3>
                   <p className="text-gray-600">{item.description}</p>
@@ -906,8 +995,8 @@ export default function LandingPage() {
               <div className="relative">
                 <div className="w-64 h-[500px] bg-gradient-to-b from-blue-500 to-blue-600 rounded-[3rem] shadow-2xl flex items-center justify-center">
                   <div className="text-white text-center p-6">
-                    <HomeModernIcon className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg opacity-75">RealEstate App</p>
+                    <img src="/icon.png" alt="IshinaDwelly App Logo" className="w-40 h-40 mx-auto mb-4 object-contain" />
+                    <p className="text-lg opacity-75">IshinaDwelly App</p>
                   </div>
                 </div>
               </div>

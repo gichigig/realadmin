@@ -16,26 +16,12 @@ import {
 } from "@heroicons/react/24/outline";
 
 // API base URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 
-// Rate limit constants (should match backend)
-const MAX_SCANS = 5;
+import ReCAPTCHA from "react-google-recaptcha";
 
-interface RateLimitResponse {
-  allowed: boolean;
-  scansRemaining: number;
-  maxScans: number;
-  remainingSeconds: number;
-}
-
-function formatRemainingTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours} hour${hours > 1 ? "s" : ""} and ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-  }
-  return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
-}
+// NextJS Environment variables
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "YOUR_SITE_KEY";
 
 interface ScanResult {
   text: string;
@@ -61,9 +47,8 @@ export default function IDScanner() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [rotation, setRotation] = useState(0);
-  const [rateLimited, setRateLimited] = useState(false);
-  const [remainingTime, setRemainingTime] = useState<string>("");
-  const [scansRemaining, setScansRemaining] = useState(MAX_SCANS);
+  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [finderPhone, setFinderPhone] = useState("");
   const [foundLocation, setFoundLocation] = useState("");
   const [collectionLocation, setCollectionLocation] = useState("");
@@ -72,35 +57,12 @@ export default function IDScanner() {
   >(
     "NATIONAL_ID",
   );
+  const [manualIdNumber, setManualIdNumber] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [idHolderName, setIdHolderName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch rate limit status from backend
-  const fetchRateLimitStatus = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/found-ids/rate-limit`);
-      if (response.ok) {
-        const data: RateLimitResponse = await response.json();
-        setRateLimited(!data.allowed);
-        setScansRemaining(data.scansRemaining);
-        if (!data.allowed && data.remainingSeconds > 0) {
-          setRemainingTime(formatRemainingTime(data.remainingSeconds));
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch rate limit status:", err);
-    }
-  };
 
-  // Check rate limit on mount and periodically
-  useEffect(() => {
-    fetchRateLimitStatus();
-    
-    // Update every minute
-    const interval = setInterval(fetchRateLimitStatus, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Helper to rotate image
   const rotateImage = async (imageSrc: string, degrees: number): Promise<string> => {
@@ -148,6 +110,7 @@ export default function IDScanner() {
         setSuccess(null);
         setUploaded(false);
         setRotation(0);
+        setIsManualEntry(false);
       };
       reader.readAsDataURL(file);
     }
@@ -377,22 +340,6 @@ export default function IDScanner() {
   const scanImage = async () => {
     if (!image) return;
 
-    // Check rate limit from backend before scanning
-    try {
-      const rateLimitResponse = await fetch(`${API_BASE}/found-ids/rate-limit`);
-      if (rateLimitResponse.ok) {
-        const rateData: RateLimitResponse = await rateLimitResponse.json();
-        if (!rateData.allowed) {
-          setRateLimited(true);
-          setRemainingTime(formatRemainingTime(rateData.remainingSeconds));
-          setError(`You have reached the maximum of ${MAX_SCANS} scans. Please try again in ${formatRemainingTime(rateData.remainingSeconds)}.`);
-          return;
-        }
-      }
-    } catch {
-      // Continue if rate limit check fails
-    }
-
     setScanning(true);
     setProgress(0);
     setError(null);
@@ -417,29 +364,7 @@ export default function IDScanner() {
       const extractedData = extractIDData(result.data.text);
       const idType = detectIDType(result.data.text);
 
-      // Record scan with backend
-      try {
-        const scanResponse = await fetch(`${API_BASE}/found-ids/scan`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        
-        if (scanResponse.ok) {
-          const scanData: RateLimitResponse = await scanResponse.json();
-          setScansRemaining(scanData.scansRemaining);
-          
-          if (!scanData.allowed || scanData.scansRemaining === 0) {
-            setRateLimited(true);
-            setRemainingTime(formatRemainingTime(scanData.remainingSeconds));
-          }
-        } else if (scanResponse.status === 429) {
-          const errorData = await scanResponse.json();
-          setRateLimited(true);
-          setRemainingTime(formatRemainingTime(errorData.remainingSeconds || 86400));
-        }
-      } catch {
-        // Continue even if recording fails
-      }
+      // We no longer record scans for rate limiting on the frontend
 
       setResult({
         text: result.data.text,
@@ -461,8 +386,10 @@ export default function IDScanner() {
   // Upload found ID to database
   const uploadFoundId = async () => {
     const resolvedName = idHolderName.trim() || result?.extractedData?.name;
-    if (!result?.extractedData?.idNumber) {
-      setError("Cannot upload: ID number is required. Please scan a clearer image.");
+    const resolvedIdNumber = manualIdNumber.trim() || result?.extractedData?.idNumber;
+    
+    if (!resolvedIdNumber) {
+      setError("Cannot upload: ID number is required.");
       return;
     }
 
@@ -481,6 +408,11 @@ export default function IDScanner() {
       return;
     }
 
+    if (!recaptchaToken) {
+      setError("Please complete the reCAPTCHA verification.");
+      return;
+    }
+
     setUploading(true);
     setError(null);
     setSuccess(null);
@@ -488,8 +420,8 @@ export default function IDScanner() {
     try {
       // Parse date of birth if available (format: DD/MM/YYYY -> YYYY-MM-DD)
       let dateOfBirth: string | null = null;
-      if (result.extractedData.dateOfBirth) {
-        const parts = result.extractedData.dateOfBirth.split("/");
+      if (result?.extractedData?.dateOfBirth) {
+        const parts = result!.extractedData!.dateOfBirth!.split("/");
         if (parts.length === 3) {
           dateOfBirth = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
@@ -497,9 +429,12 @@ export default function IDScanner() {
 
       const response = await fetch(`${API_BASE}/found-ids`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Client-Type": "WEB_ADMIN"
+        },
         body: JSON.stringify({
-          idNumber: result.extractedData.idNumber,
+          idNumber: resolvedIdNumber,
           fullName: resolvedName,
           idType: selectedIdType,
           schoolName: selectedIdType === "SCHOOL_ID" ? schoolName.trim() : null,
@@ -507,6 +442,7 @@ export default function IDScanner() {
           finderPhone: finderPhone.trim(),
           foundLocation: foundLocation.trim() || null,
           collectionLocation: collectionLocation.trim() || null,
+          recaptchaToken: recaptchaToken,
         }),
       });
 
@@ -514,16 +450,12 @@ export default function IDScanner() {
         const data = await response.json();
         setSuccess(data.message || "ID uploaded successfully! The owner can now find your contact information.");
         setUploaded(true);
-        // Refresh rate limit status
-        await fetchRateLimitStatus();
       } else {
         const errorData = await response.json();
-        if (errorData.code === "RATE_LIMITED") {
-          setRateLimited(true);
-          setRemainingTime(formatRemainingTime(errorData.remainingSeconds || 86400));
-          setError("Upload limit reached. Please try again after 24 hours.");
-        } else if (errorData.code === "ALREADY_REGISTERED") {
+        if (errorData.code === "ALREADY_REGISTERED") {
           setError("This ID has already been registered by someone else.");
+        } else if (errorData.code === "CAPTCHA_FAILED") {
+          setError("reCAPTCHA verification failed. Please try again.");
         } else {
           setError(errorData.error || "Failed to upload ID. Please try again.");
         }
@@ -544,6 +476,7 @@ export default function IDScanner() {
     setProgress(0);
     setRotation(0);
     setUploaded(false);
+    setIsManualEntry(false);
     setFinderPhone("");
     setFoundLocation("");
     setCollectionLocation("");
@@ -557,62 +490,28 @@ export default function IDScanner() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Rate Limit Block Message */}
-      {rateLimited && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <ClockIcon className="w-6 h-6 text-red-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-red-800">Scan Limit Reached</h3>
-              <p className="text-red-700 mt-1">
-                You have used all {MAX_SCANS} available scans for today. To prevent abuse, we limit the number of scans per device.
-              </p>
-              <p className="text-red-700 mt-2">
-                <span className="font-medium">Please try again in:</span> {remainingTime}
-              </p>
-              <div className="mt-4 p-3 bg-red-100 rounded-lg">
-                <p className="text-sm text-red-800">
-                  <span className="font-medium">Tip:</span> Take a clear photo of the ID and save it. You can upload and scan it after the 24-hour period ends.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Notice Banner */}
-      {!rateLimited && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-amber-800">Scan Only - No Search Available</h3>
-              <p className="text-amber-700 text-sm mt-1">
-                This web scanner is designed for uploading and scanning images of lost IDs only.
-                To search for lost IDs in our database, please download the FindMyID mobile app.
-              </p>
-              <a
-                href="/help#download"
-                className="inline-flex items-center gap-2 mt-3 text-amber-800 hover:text-amber-900 font-medium text-sm"
-              >
-                <DevicePhoneMobileIcon className="w-5 h-5" />
-                Download the App to Search
-              </a>
-            </div>
-          </div>
-          {/* Remaining scans indicator */}
-          <div className="mt-3 pt-3 border-t border-amber-200">
-            <p className="text-sm text-amber-700">
-              <span className="font-medium">Scans remaining today:</span> {scansRemaining} of {MAX_SCANS}
+      <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-amber-800">Scan Only - No Search Available</h3>
+            <p className="text-amber-700 text-sm mt-1">
+              This web scanner is designed for uploading and scanning images of lost IDs only.
+              To search for lost IDs in our database, please download the FindMyID mobile app.
             </p>
+            <a
+              href="/help#download"
+              className="inline-flex items-center gap-2 mt-3 text-amber-800 hover:text-amber-900 font-medium text-sm"
+            >
+              <DevicePhoneMobileIcon className="w-5 h-5" />
+              Download the App to Search
+            </a>
           </div>
         </div>
-      )}
-
+      </div>
       {/* Upload Area */}
-      {!rateLimited && !image && (
+      {!image && !isManualEntry && (
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -645,15 +544,28 @@ export default function IDScanner() {
               <CameraIcon className="w-5 h-5" />
               Select Image
             </button>
+            <div className="w-full max-w-xs border-t border-gray-200 my-2"></div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsManualEntry(true);
+              }}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              Enter Details Manually
+            </button>
           </div>
         </div>
       )}
 
       {/* Image Preview and Scan Results */}
-      {!rateLimited && image && (
+      {/* Image Preview and Scan Results */}
+      {(image || isManualEntry) && (
         <div className="space-y-6">
           {/* Image Preview */}
-          <div className="relative rounded-xl overflow-hidden bg-gray-100">
+          {image && !isManualEntry && (
+            <div className="relative rounded-xl overflow-hidden bg-gray-100">
             <img
               src={image}
               alt="ID Preview"
@@ -688,9 +600,10 @@ export default function IDScanner() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Scan Button */}
-          {!result && (
+          {image && !isManualEntry && !result && (
             <div className="flex justify-center">
               <button
                 onClick={scanImage}
@@ -713,7 +626,7 @@ export default function IDScanner() {
           )}
 
           {/* Progress Bar */}
-          {scanning && (
+          {!isManualEntry && scanning && (
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
@@ -723,7 +636,7 @@ export default function IDScanner() {
           )}
 
           {/* Error Display */}
-          {error && (
+          {!isManualEntry && error && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
               <ExclamationTriangleIcon className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div>
@@ -734,7 +647,7 @@ export default function IDScanner() {
           )}
 
           {/* Success Display */}
-          {success && !result && (
+          {!isManualEntry && success && !result && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
               <CheckCircleIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
@@ -745,27 +658,41 @@ export default function IDScanner() {
           )}
 
           {/* Results */}
-          {result && (
+          {(result || isManualEntry) && (
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-6 py-4 bg-green-50 border-b border-green-100 flex items-center gap-3">
-                <CheckCircleIcon className="w-6 h-6 text-green-600" />
-                <div>
-                  <h3 className="font-semibold text-green-800">Scan Complete</h3>
-                  <p className="text-sm text-green-700">
-                    Confidence: {result.confidence.toFixed(1)}%
-                  </p>
+              {result ? (
+                <div className="px-6 py-4 bg-green-50 border-b border-green-100 flex items-center gap-3">
+                  <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                  <div>
+                    <h3 className="font-semibold text-green-800">Scan Complete</h3>
+                    <p className="text-sm text-green-700">
+                      Confidence: {result.confidence.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="px-6 py-4 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+                  <DocumentArrowUpIcon className="w-6 h-6 text-blue-600" />
+                  <div>
+                    <h3 className="font-semibold text-blue-800">Manual Entry</h3>
+                    <p className="text-sm text-blue-700">
+                      Please enter the details found on the ID card.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="p-6 space-y-6">
                 {/* ID Type */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">Detected ID Type</h4>
-                  <p className="text-lg font-semibold text-gray-900">{result.idType}</p>
-                </div>
+                {result && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Detected ID Type</h4>
+                    <p className="text-lg font-semibold text-gray-900">{result.idType}</p>
+                  </div>
+                )}
 
                 {/* Extracted Data */}
-                {result.extractedData && Object.keys(result.extractedData).length > 0 && (
+                {result?.extractedData && Object.keys(result.extractedData).length > 0 && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-3">Extracted Information</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -810,7 +737,7 @@ export default function IDScanner() {
                 )}
 
                 {/* Download App CTA */}
-                  {!uploaded && result.extractedData?.idNumber && (
+                  {!uploaded && (result?.extractedData?.idNumber || isManualEntry) && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                     <div className="space-y-4">
                       <div className="flex items-start gap-3">
@@ -837,6 +764,20 @@ export default function IDScanner() {
                             <option value="NATIONAL_ID">National ID</option>
                             <option value="SCHOOL_ID">School ID</option>
                           </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            ID Number *
+                          </label>
+                          <input
+                            type="text"
+                            value={manualIdNumber || result?.extractedData?.idNumber || ""}
+                            onChange={(e) => setManualIdNumber(e.target.value)}
+                            placeholder="e.g., 12345678"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            readOnly={!!result?.extractedData?.idNumber && !isManualEntry}
+                          />
                         </div>
 
                         <div>
@@ -909,6 +850,13 @@ export default function IDScanner() {
                             onChange={(e) => setCollectionLocation(e.target.value)}
                             placeholder="e.g., My shop on Moi Avenue, or Police Station"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          />
+                        </div>
+                        
+                        <div className="flex justify-center my-4">
+                          <ReCAPTCHA
+                            sitekey={RECAPTCHA_SITE_KEY}
+                            onChange={(token) => setRecaptchaToken(token)}
                           />
                         </div>
                         
@@ -993,7 +941,7 @@ export default function IDScanner() {
                   onClick={clearImage}
                   className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Scan Another
+                  {isManualEntry ? "Cancel" : "Scan Another"}
                 </button>
               </div>
             </div>

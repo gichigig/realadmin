@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth, MfaChallenge } from "@/lib/auth-context";
-import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { GoogleLogin } from "@react-oauth/google";
 
 type MfaMethod = "PASSKEY" | "TOTP" | "RECOVERY";
@@ -29,7 +29,7 @@ const encodeBase64Url = (buffer: ArrayBuffer): string => {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 const BLUVBERRY_LOGO_SRC = "/WhatsApp%20Image%202026-05-30%20at%2018.05.36.jpeg";
 
 export default function LoginPage() {
@@ -52,6 +52,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [bluvberryLoading, setBluvberryLoading] = useState(false);
+  const [showForceLoginModal, setShowForceLoginModal] = useState(false);
+  const [pendingGoogleToken, setPendingGoogleToken] = useState<string | null>(null);
 
   const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
   const [mfaMethod, setMfaMethod] = useState<MfaMethod>("TOTP");
@@ -74,12 +76,12 @@ export default function LoginPage() {
           router.push(user.primaryRole === "helper" ? "/helper" : "/");
           return;
         }
-      } catch {}
+      } catch { }
     }
     const wsMode = localStorage.getItem("workspaceMode");
     if (wsMode) {
-       router.push(wsMode === "helper" ? "/helper" : "/");
-       return;
+      router.push(wsMode === "helper" ? "/helper" : "/");
+      return;
     }
     router.push("/choose-role");
   };
@@ -104,7 +106,13 @@ export default function LoginPage() {
       await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
       handleSuccessfulAuth();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      const errorMessage = err instanceof Error ? err.message : "Google sign-in failed";
+      if (errorMessage === "CONCURRENT_LOGIN_DETECTED") {
+        setPendingGoogleToken(credentialResponse.credential);
+        setShowForceLoginModal(true);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -150,7 +158,12 @@ export default function LoginPage() {
       setMfaChallenge(result.challenge);
       setMfaMethod((result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP") as MfaMethod);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      if (errorMessage === "CONCURRENT_LOGIN_DETECTED") {
+        setShowForceLoginModal(true);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -240,12 +253,54 @@ export default function LoginPage() {
     }
   };
 
+  const handleForceLogin = async () => {
+    setShowForceLoginModal(false);
+    setError("");
+    if (pendingGoogleToken) {
+      setGoogleLoading(true);
+      try {
+        await loginWithGoogleIdToken(pendingGoogleToken, "REALADMIN", true);
+        handleSuccessfulAuth();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Google sign-in failed");
+      } finally {
+        setGoogleLoading(false);
+        setPendingGoogleToken(null);
+      }
+    } else {
+      setLoading(true);
+      try {
+        const result = await login(email, password, true);
+        if (result.status === "AUTHENTICATED") {
+          handleSuccessfulAuth();
+          return;
+        }
+        if (!result.challenge) {
+          throw new Error("MFA challenge missing");
+        }
+        setMfaChallenge(result.challenge);
+        setMfaMethod((result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP") as MfaMethod);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Login failed");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative">
+      <Link
+        href="/"
+        className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
+      >
+        <ArrowLeftIcon className="w-5 h-5" />
+        <span className="font-medium">Back to Home</span>
+      </Link>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center">
-            <BuildingOfficeIcon className="h-10 w-10 text-white" />
+          <div className="mx-auto flex items-center justify-center">
+            <img src="/icon.png" alt="IshinaDwelly" className="h-16 w-16 object-contain" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             {requiresMfa ? "Verify your identity" : "Sign in to Admin Panel"}
@@ -424,9 +479,55 @@ export default function LoginPage() {
             </div>
           )}
 
-     
+
         </form>
       </div>
+
+      {showForceLoginModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowForceLoginModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Already Logged In
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        You are already logged into another device. Logging in here will automatically log you out of your previous session. Do you want to continue?
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={handleForceLogin}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Yes, Log out other device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForceLoginModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

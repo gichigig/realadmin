@@ -10,7 +10,7 @@ const faqs = [
     category: "General",
     questions: [
       {
-        question: "What is Dwelly (RealEstate)?",
+        question: "What is Dwelly (IshinaDwelly)?",
         answer:
           "Dwelly is a comprehensive property management platform connecting landlords with tenants. Landlords use the web platform to list rentals and purchase premium sponsorships, while tenants use the mobile app to browse listings, hire helpers, and use the Premium Map Radar.",
       },
@@ -159,7 +159,7 @@ export default function FAQsPage() {
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <HomeModernIcon className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">RealEstate</span>
+              <span className="text-xl font-bold text-gray-900">IshinaDwelly</span>
             </Link>
             <div className="flex items-center gap-3">
               <Link
@@ -186,7 +186,7 @@ export default function FAQsPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Find answers to common questions about RealEstate. Can&apos;t find what you&apos;re looking for?{" "}
+            Find answers to common questions about IshinaDwelly. Can&apos;t find what you&apos;re looking for?{" "}
             <Link href="/help#contact" className="text-blue-400 underline hover:no-underline">
               Contact our support team
             </Link>

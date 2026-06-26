@@ -3,15 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { rentalsApi, filesApi, Rental, PropertyType } from "@/lib/api";
+import { rentalsApi, filesApi, Rental, PropertyType, Building, buildingsApi } from "@/lib/api";
 import { PhotoIcon, XMarkIcon, ArrowLeftIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import LocationAutocomplete from "@/components/LocationAutocomplete";
-import { LocationSearchResult } from "@/lib/kenya-locations";
-import dynamic from "next/dynamic";
+import Link from "next/link";
 import HashtagsInput from "@/components/HashtagsInput";
-
-const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -68,9 +64,13 @@ export default function EditRentalPage() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [formData, setFormData] = useState<Partial<Rental>>({});
   const [uploadingCompoundVideo, setUploadingCompoundVideo] = useState(false);
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
+    // Fetch building complexes
+    buildingsApi.getAll().then(setBuildings).catch(console.error);
+
     const fetchRental = async () => {
       try {
         const data = await rentalsApi.getById(Number(params.id));
@@ -110,24 +110,6 @@ export default function EditRentalPage() {
     setFormData({ ...formData, [name]: checked });
   };
 
-  const handleLocationChange = (value: string, location?: LocationSearchResult) => {
-    if (location) {
-      setFormData({
-        ...formData,
-        ward: location.ward || "",
-        constituency: location.constituency || "",
-        county: location.county,
-      });
-    } else {
-      setFormData({
-        ...formData,
-        ward: "",
-        constituency: "",
-        county: "",
-      });
-    }
-  };
-
   const handleAmenityToggle = (amenity: string) => {
     setSelectedAmenities((prev) =>
       prev.includes(amenity)
@@ -162,9 +144,7 @@ export default function EditRentalPage() {
   const handleRemoveImage = async (index: number) => {
     const image = images[index];
     try {
-      if (image.filename) {
-        await filesApi.delete(image.filename);
-      }
+      await filesApi.deleteByUrl(image.url);
       setImages(images.filter((_, i) => i !== index));
     } catch (error) {
       console.error("Failed to delete image:", error);
@@ -211,7 +191,7 @@ export default function EditRentalPage() {
 
     setUploadingCompoundVideo(true);
     try {
-      const result = await filesApi.upload(file);
+      const result = await filesApi.uploadVideo(file);
       setFormData({ ...formData, compoundVideoUrl: result.url });
     } catch (error) {
       console.error("Failed to upload compound video:", error);
@@ -224,8 +204,7 @@ export default function EditRentalPage() {
   const handleRemoveCompoundVideo = async () => {
     try {
       if (formData.compoundVideoUrl) {
-        const filename = formData.compoundVideoUrl.split("/").pop();
-        if (filename) await filesApi.delete(filename);
+        await filesApi.deleteByUrl(formData.compoundVideoUrl);
       }
       setFormData({ ...formData, compoundVideoUrl: null });
     } catch (error) {
@@ -237,16 +216,19 @@ export default function EditRentalPage() {
     e.preventDefault();
 
     const validationErrors: string[] = [];
+    if (!formData.buildingId) {
+      validationErrors.push("Please select a Building");
+    }
+    if (!formData.title || formData.title.trim().length === 0) {
+      validationErrors.push("Unit/House Name is required");
+    }
+    if (!formData.price || formData.price <= 0) {
+      validationErrors.push("Price must be greater than 0");
+    }
     if (images.length === 0) {
       validationErrors.push("At least one picture is required.");
     }
     
-    if (user?.isPremiumActive || user?.premiumActive) {
-      if (!formData.videoUrl && !formData.compoundVideoUrl) {
-        validationErrors.push("Premium landlords must upload a Main Listing Video or Compound Video.");
-      }
-    }
-
     if (validationErrors.length > 0) {
       alert("Please fix the following:\n\n" + validationErrors.join("\n"));
       return;
@@ -268,18 +250,14 @@ export default function EditRentalPage() {
         hasVideo: (formData.videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
         hashtags: hashtags,
-        // Convert date to full ISO datetime for backend LocalDateTime
         availableFrom: normalizedAvailableFrom,
-        // Use map coordinates or fallback to Nairobi
-        latitude: formData.latitude || -1.2921,
-        longitude: formData.longitude || 36.8219,
       };
 
       await rentalsApi.update(Number(params.id), rental);
       router.push(`/rentals/${params.id}`);
     } catch (error) {
       console.error("Failed to update rental:", error);
-      alert("Failed to update rental");
+      alert(error instanceof Error ? error.message : "Failed to update rental");
     } finally {
       setSaving(false);
     }
@@ -297,7 +275,7 @@ export default function EditRentalPage() {
     <div className="max-w-4xl mx-auto">
       <button
         onClick={() => router.back()}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+        className="flex items-center text-gray-600 hover:text-gray-900 mb-6 font-medium text-sm"
       >
         <ArrowLeftIcon className="w-5 h-5 mr-2" />
         Back
@@ -309,12 +287,42 @@ export default function EditRentalPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Select Building */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Select Building Portfolio</h2>
+            <Link
+              href="/buildings/new"
+              className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-700 font-medium"
+            >
+              + Create New Building
+            </Link>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Building/Complex</label>
+            <select
+              name="buildingId"
+              value={formData.buildingId || ""}
+              onChange={(e) => setFormData(prev => ({ ...prev, buildingId: e.target.value ? Number(e.target.value) : undefined }))}
+              required
+              className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            >
+              <option value="">-- Select Building Complex --</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.ward}, {b.county})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Basic Information */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit/House Name</label>
               <input
                 type="text"
                 name="title"
@@ -322,17 +330,7 @@ export default function EditRentalPage() {
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <textarea
-                name="description"
-                value={formData.description || ""}
-                onChange={handleInputChange}
-                required
-                rows={4}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                placeholder="e.g. Apt 4B or House 3"
               />
             </div>
             <div>
@@ -351,14 +349,15 @@ export default function EditRentalPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Rent ($)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Rent (KES)</label>
               <input
                 type="number"
                 name="price"
                 value={formData.price || 0}
                 onChange={handleInputChange}
+                onWheel={(e) => (e.target as HTMLElement).blur()}
                 required
-                min="0"
+                min="1"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
               />
             </div>
@@ -375,93 +374,6 @@ export default function EditRentalPage() {
                 <option value="RENTED">Rented</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Location */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address || ""}
-                onChange={handleInputChange}
-                required
-                placeholder="e.g., Near Mosque, Behind Shopping Center"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <LocationAutocomplete
-                label="Ward"
-                value={formData.ward || ""}
-                onChange={handleLocationChange}
-                placeholder="Search for a ward..."
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Start typing to search for a ward. Constituency and County will be auto-filled.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Constituency</label>
-              <input
-                type="text"
-                value={formData.constituency || ""}
-                readOnly
-                className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
-                placeholder="Auto-filled from ward"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">County</label>
-              <input
-                type="text"
-                value={formData.county || ""}
-                readOnly
-                className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
-                placeholder="Auto-filled from ward"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Area Name (Optional)</label>
-              <input
-                type="text"
-                name="areaName"
-                value={formData.areaName || ""}
-                onChange={handleInputChange}
-                placeholder="e.g., Kilimani, South B, Pangani"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-              <p className="mt-1 text-xs text-gray-500">Local name or nickname for the area</p>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Direction Description (Optional)</label>
-              <textarea
-                name="directions"
-                value={formData.directions || ""}
-                onChange={handleInputChange}
-                rows={3}
-                placeholder="e.g., Located 200m from the main road, next to the petrol station..."
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-              <p className="mt-1 text-xs text-gray-500">Help potential tenants find the property easily</p>
-            </div>
-            <div className="md:col-span-2 mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pinpoint Location on Map</label>
-              <p className="text-xs text-gray-500 mb-3">Click on the map to set the exact location coordinates for this rental.</p>
-              <MapPicker 
-                latitude={formData.latitude || -1.2921} 
-                longitude={formData.longitude || 36.8219} 
-                onChange={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))} 
-              />
-              {formData.latitude && formData.longitude && (
-                <p className="mt-2 text-xs text-green-600">Coordinates selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}</p>
-              )}
             </div>
           </div>
         </div>
@@ -508,6 +420,18 @@ export default function EditRentalPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Floor</label>
+              <input
+                type="number"
+                name="floor"
+                value={formData.floor ?? ""}
+                onChange={handleInputChange}
+                min="0"
+                placeholder="e.g. 0 for Ground, 1, 2"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Available From</label>
               <input
                 type="date"
@@ -539,6 +463,29 @@ export default function EditRentalPage() {
                 <span className="ml-2 text-sm text-gray-700">Parking Available</span>
               </label>
             </div>
+          </div>
+        </div>
+
+        {/* Privacy & Approval */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy Settings</h2>
+          <div className="space-y-4">
+            <label className="flex items-start">
+              <input
+                type="checkbox"
+                name="requiresApproval"
+                checked={formData.requiresApproval || false}
+                onChange={handleCheckboxChange}
+                className="w-4 h-4 mt-1 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <div className="ml-3">
+                <span className="text-sm font-medium text-gray-700">Require Super Admin Approval</span>
+                <p className="text-sm text-gray-500">
+                  When enabled, this listing will be reviewed by a super admin before being published.
+                  This adds an extra layer of confidentiality for sensitive listings.
+                </p>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -621,7 +568,7 @@ export default function EditRentalPage() {
           
           {(user?.isPremiumActive || user?.premiumActive) ? (
             <div className="space-y-8">
-              <p className="text-sm text-blue-700">Enhance your listing with video content to stand out to tenants.</p>
+              <p className="text-sm text-blue-700 mb-4">Enhance your listing with video content to stand out to tenants.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Main Listing Video */}
@@ -630,20 +577,21 @@ export default function EditRentalPage() {
                   <p className="text-xs text-gray-500 mb-3">Upload a walk-through or main showcase video (max 50MB).</p>
                   
                   {formData.videoUrl ? (
-                    <div className="relative group">
-                      <video 
-                        src={filesApi.getUrl(formData.videoUrl)} 
-                        controls 
-                        className="w-full h-40 object-cover rounded-lg bg-black"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveVideo}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
+                     <div className="relative group">
+                       <video 
+                         src={filesApi.getUrl(formData.videoUrl)} 
+                         controls 
+                         preload="metadata"
+                         className="w-full h-40 object-cover rounded-lg bg-black"
+                       />
+                       <button
+                         type="button"
+                         onClick={handleRemoveVideo}
+                         className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                       >
+                         <XMarkIcon className="w-4 h-4" />
+                       </button>
+                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                       <div className="flex flex-col items-center justify-center">
@@ -693,7 +641,7 @@ export default function EditRentalPage() {
                       <p className="text-xs text-gray-500 mb-3">Small hovering video shown over your pictures.</p>
                       {formData.compoundVideoUrl ? (
                         <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                          <video src={filesApi.getUrl(formData.compoundVideoUrl)} controls className="w-full h-32 object-cover bg-black" />
+                          <video src={filesApi.getUrl(formData.compoundVideoUrl)} controls preload="metadata" className="w-full h-32 object-cover bg-black" />
                           <button
                             type="button"
                             onClick={handleRemoveCompoundVideo}

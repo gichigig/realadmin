@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 const AUTH_REQUEST_TIMEOUT_MS = 10000;
 const SESSION_EXPIRED_EVENT = "realadmin:session-expired";
 
@@ -37,6 +37,7 @@ export interface User {
   lastName: string;
   phone?: string;
   verifiedPhone?: string;
+  avatarUrl?: string;
   role: "USER" | "ADMIN" | "SUPER_ADMIN";
   userType?: "INDIVIDUAL" | "AGENT" | "COMPANY";
   verificationStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -46,6 +47,8 @@ export interface User {
   scannedIdNumber?: string;
   isPremiumActive?: boolean;
   premiumActive?: boolean;
+  realadminPremiumActive?: boolean;
+  realadminFreeMonthClaimed?: boolean;
 }
 
 export interface AuthResponse {
@@ -57,9 +60,12 @@ export interface AuthResponse {
   firstName: string;
   lastName: string;
   phone?: string;
+  avatarUrl?: string;
   role: "USER" | "ADMIN" | "SUPER_ADMIN";
   emailVerified?: boolean;
   premiumActive?: boolean;
+  realadminPremiumActive?: boolean;
+  realadminFreeMonthClaimed?: boolean;
   premiumStartedAt?: string;
   premiumExpiresAt?: string;
 }
@@ -81,13 +87,13 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<LoginResult>;
+  login: (email: string, password: string, forceLogin?: boolean) => Promise<LoginResult>;
   verifyTotpLogin: (challengeId: string, challengeToken: string, code: string) => Promise<void>;
   verifyRecoveryLogin: (challengeId: string, challengeToken: string, recoveryCode: string) => Promise<void>;
   fetchPasskeyOptions: (challengeId: string, challengeToken: string) => Promise<any>;
   verifyPasskeyLogin: (challengeId: string, challengeToken: string, credential: any) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  loginWithGoogleIdToken: (idToken: string, clientType?: string) => Promise<void>;
+  loginWithGoogleIdToken: (idToken: string, clientType?: string, forceLogin?: boolean) => Promise<void>;
   exchangeBluvberryCode: (code: string, redirectUri: string, clientType?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
@@ -175,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: data.firstName,
       lastName: data.lastName,
       phone: data.phone,
+      avatarUrl: data.avatarUrl,
       role: data.role,
       emailVerified: data.emailVerified,
       premiumActive: data.premiumActive,
@@ -185,15 +192,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  const login = async (email: string, password: string): Promise<LoginResult> => {
+  const login = async (email: string, password: string, forceLogin = false): Promise<LoginResult> => {
     const response = await fetch(`${API_BASE_URL}/auth/login/init`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, clientType: "WEB" }),
+      body: JSON.stringify({ email, password, clientType: "WEB", forceLogin }),
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (error.error === "CONCURRENT_LOGIN_DETECTED") {
+        throw new Error("CONCURRENT_LOGIN_DETECTED");
+      }
       throw new Error(error.message || "Login failed");
     }
 
@@ -286,15 +296,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.json();
   };
 
-  const loginWithGoogleIdToken = async (idToken: string, clientType = "REALADMIN") => {
+  const loginWithGoogleIdToken = async (idToken: string, clientType = "REALADMIN", forceLogin = false) => {
     const response = await fetch(`${API_BASE_URL}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken, clientType }),
+      body: JSON.stringify({ idToken, clientType, forceLogin }),
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (error.error === "CONCURRENT_LOGIN_DETECTED") {
+        throw new Error("CONCURRENT_LOGIN_DETECTED");
+      }
       throw new Error(error.message || "Google sign-in failed");
     }
 

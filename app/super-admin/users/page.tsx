@@ -10,6 +10,8 @@ import {
   ClockIcon,
   CheckBadgeIcon,
   XMarkIcon,
+  StarIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
 export default function SuperAdminUsersPage() {
@@ -20,9 +22,20 @@ export default function SuperAdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState(searchParams.get("filter") || "all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [verifyNotes, setVerifyNotes] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [showGrantPremiumFor, setShowGrantPremiumFor] = useState<AdminUser | null>(null);
+  const [grantDuration, setGrantDuration] = useState(30);
+  const [grantPlatform, setGrantPlatform] = useState("REALADMIN");
+  const [showPaymentsFor, setShowPaymentsFor] = useState<AdminUser | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isSuperAdmin) {
@@ -31,10 +44,13 @@ export default function SuperAdminUsersPage() {
   }, [isLoading, isSuperAdmin, router]);
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      fetchUsers();
-    }
-  }, [isSuperAdmin, filter]);
+    const handler = setTimeout(() => {
+      if (isSuperAdmin) {
+        fetchUsers();
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [isSuperAdmin, filter, searchQuery, page]);
 
   useEffect(() => {
     const verifyId = searchParams.get("verify");
@@ -49,13 +65,15 @@ export default function SuperAdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      let data: AdminUser[];
+      let data;
       if (filter === "pending") {
-        data = await superAdminApi.getPendingVerifications();
+        data = await superAdminApi.getPendingVerifications(searchQuery, page, pageSize);
       } else {
-        data = await superAdminApi.getAllAdmins();
+        data = await superAdminApi.getAllAdmins(searchQuery, page, pageSize);
       }
-      setUsers(data);
+      setUsers(data.content);
+      setTotalPages(data.totalPages);
+      setTotalElements(data.totalElements);
     } catch (err) {
       setError("Failed to load users");
     } finally {
@@ -84,6 +102,34 @@ export default function SuperAdminUsersPage() {
       fetchUsers();
     } catch (err) {
       setError("Failed to update role");
+    }
+  };
+
+  const handleGrantPremium = async () => {
+    if (!showGrantPremiumFor) return;
+    setProcessing(true);
+    try {
+      await superAdminApi.grantPremium(showGrantPremiumFor.id, grantDuration, grantPlatform);
+      setShowGrantPremiumFor(null);
+      alert("Premium granted successfully");
+      fetchUsers();
+    } catch (err) {
+      alert("Failed to grant premium");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleViewPayments = async (user: AdminUser) => {
+    setShowPaymentsFor(user);
+    setLoadingPayments(true);
+    try {
+      const data = await superAdminApi.getUserPayments(user.id);
+      setPayments(data);
+    } catch (err) {
+      alert("Failed to load payments");
+    } finally {
+      setLoadingPayments(false);
     }
   };
 
@@ -139,7 +185,9 @@ export default function SuperAdminUsersPage() {
     }
   };
 
-  if (isLoading || loading) {
+  const filteredUsers = users; // Filtering is now handled on the backend
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -165,7 +213,10 @@ export default function SuperAdminUsersPage() {
       {/* Filters */}
       <div className="mb-6 flex gap-2">
         <button
-          onClick={() => setFilter("all")}
+          onClick={() => {
+            setFilter("all");
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg font-medium ${
             filter === "all"
               ? "bg-gray-900 text-white"
@@ -175,7 +226,10 @@ export default function SuperAdminUsersPage() {
           All Users
         </button>
         <button
-          onClick={() => setFilter("pending")}
+          onClick={() => {
+            setFilter("pending");
+            setPage(0);
+          }}
           className={`px-4 py-2 rounded-lg font-medium ${
             filter === "pending"
               ? "bg-amber-600 text-white"
@@ -186,8 +240,27 @@ export default function SuperAdminUsersPage() {
         </button>
       </div>
 
+      {/* Search Input */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search users by name, email, or phone..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setPage(0);
+          }}
+          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
+        />
+      </div>
+
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -212,7 +285,7 @@ export default function SuperAdminUsersPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -249,7 +322,7 @@ export default function SuperAdminUsersPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {user.rentalCount}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2 items-center">
                   {user.verificationStatus === "PENDING" && (
                     <button
                       onClick={() => setSelectedUser(user)}
@@ -258,12 +331,79 @@ export default function SuperAdminUsersPage() {
                       Review
                     </button>
                   )}
+                  <button
+                    onClick={() => setShowGrantPremiumFor(user)}
+                    title="Grant Premium"
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    <StarIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleViewPayments(user)}
+                    title="View Payments"
+                    className="text-green-600 hover:text-green-900"
+                  >
+                    <CurrencyDollarIcon className="h-5 w-5" />
+                  </button>
                 </td>
               </tr>
             ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  {users.length === 0 ? "No users found." : "No users match your search."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+          <p className="text-sm text-gray-500">
+            Showing{" "}
+            <span className="font-medium text-gray-700">
+              {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalElements)}
+            </span>{" "}
+            of <span className="font-medium text-gray-700">{totalElements}</span> users
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(0)}
+              disabled={page === 0}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors bg-white text-gray-700"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors bg-white text-gray-700"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 text-sm text-gray-700 font-medium">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors bg-white text-gray-700"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setPage(totalPages - 1)}
+              disabled={page >= totalPages - 1}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors bg-white text-gray-700"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Verification Modal */}
       {selectedUser && (
@@ -368,6 +508,107 @@ export default function SuperAdminUsersPage() {
               >
                 {processing ? "Processing..." : "Verify"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grant Premium Modal */}
+      {showGrantPremiumFor && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Grant Premium</h3>
+              <button onClick={() => setShowGrantPremiumFor(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                Grant premium access to <strong>{showGrantPremiumFor.firstName} {showGrantPremiumFor.lastName}</strong>.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Platform</label>
+                <select
+                  value={grantPlatform}
+                  onChange={(e) => setGrantPlatform(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="REALADMIN">RealAdmin Pro (Landlord)</option>
+                  <option value="DWELLY">Dwelly Premium (Tenant)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Duration (Days)</label>
+                <input
+                  type="number"
+                  value={grantDuration}
+                  onChange={(e) => setGrantDuration(parseInt(e.target.value) || 0)}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowGrantPremiumFor(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGrantPremium}
+                disabled={processing}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {processing ? "Processing..." : "Grant Access"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Payments Modal */}
+      {showPaymentsFor && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Payment History: {showPaymentsFor.firstName} {showPaymentsFor.lastName}</h3>
+              <button onClick={() => setShowPaymentsFor(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              {loadingPayments ? (
+                <div className="flex justify-center p-8">
+                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : payments.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No payments found for this user.</p>
+              ) : (
+                <div className="space-y-4">
+                  {payments.map((p) => (
+                    <div key={p.id} className={`p-4 border rounded-lg ${p.status === 'COMPLETED' ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">{p.subscriptionType} - {p.amount} KSH</p>
+                          <p className="text-sm text-gray-600">Status: {p.status}</p>
+                          <p className="text-sm text-gray-600">Phone: {p.phoneNumber}</p>
+                          <p className="text-xs text-gray-500 mt-1">{p.resultDesc}</p>
+                          {p.merchantRequestId && p.phoneNumber === 'MANUAL_GRANT' && (
+                            <p className="text-xs text-indigo-600 mt-1">Granted By: {p.merchantRequestId}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleString()}</p>
+                          {p.mpesaReceiptNumber && (
+                            <p className="text-sm font-mono mt-1">{p.mpesaReceiptNumber}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

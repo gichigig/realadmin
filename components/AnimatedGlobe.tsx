@@ -226,7 +226,7 @@ export default function AnimatedGlobe() {
     <div className="relative flex items-center justify-center">
       <canvas
         ref={canvasRef}
-        className="w-[400px] h-[400px] md:w-[500px] md:h-[500px]"
+        className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px]"
         style={{ maxWidth: "100%" }}
       />
     </div>

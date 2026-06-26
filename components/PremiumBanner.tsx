@@ -20,7 +20,8 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
   const [isDismissed, setIsDismissed] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
-  const isPremium = user?.isPremiumActive || user?.premiumActive;
+  const isPremium = user?.isPremiumActive || user?.realadminPremiumActive;
+  const hasClaimedFreeTrial = user?.realadminFreeMonthClaimed === true;
 
   useEffect(() => {
     setIsClient(true);
@@ -41,11 +42,11 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
 
   if (isPremium) {
     return (
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-8 gap-4 sm:gap-0">
         <div>{children}</div>
         <button
           disabled
-          className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 text-amber-700 rounded-full font-semibold cursor-not-allowed whitespace-nowrap ml-4"
+          className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 text-amber-700 rounded-full font-semibold cursor-not-allowed whitespace-nowrap sm:ml-4"
         >
           <StarIcon className="w-5 h-5 text-amber-500" /> Pro Active
         </button>
@@ -99,6 +100,38 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
     } catch (err) {
       setStatus("FAILED");
       setMessage("An error occurred during payment.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleClaimFreeTrial = async () => {
+    setProcessing(true);
+    setStatus("PENDING");
+    setMessage("Activating your 1 month free trial...");
+    
+    try {
+      const token = localStorage.getItem("dwelly_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/premium/claim-free-month`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatus("SUCCESS");
+        setMessage("Free trial activated successfully! Welcome to Landlord Pro.");
+        if (refreshUser) {
+          refreshUser();
+        }
+      } else {
+        setStatus("FAILED");
+        setMessage(data.error || "Failed to claim free trial.");
+      }
+    } catch (err) {
+      setStatus("FAILED");
+      setMessage("An error occurred while claiming the free trial.");
     } finally {
       setProcessing(false);
     }
@@ -160,6 +193,19 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
               <span className="text-lg">600 KSH</span>
             </button>
           </div>
+          
+          {!hasClaimedFreeTrial && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleClaimFreeTrial}
+                disabled={processing || status === 'SUCCESS'}
+                className="w-full bg-green-600 text-white rounded-lg py-3 font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                Claim 1 Month Free Trial
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -168,14 +214,24 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
   if (isDismissed) {
     return (
       <>
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-8 gap-4 sm:gap-0">
           <div>{children}</div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full font-semibold shadow hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap ml-4"
-          >
-            <SparklesIcon className="w-5 h-5 text-amber-300" /> Upgrade
-          </button>
+          <div className="flex items-center gap-3">
+            {!hasClaimedFreeTrial && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-100 border border-green-200 text-green-700 rounded-full font-semibold hover:bg-green-200 transition-colors whitespace-nowrap"
+              >
+                1 Month Free
+              </button>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full font-semibold shadow hover:shadow-lg transition-all hover:scale-105 whitespace-nowrap sm:ml-4"
+            >
+              <SparklesIcon className="w-5 h-5 text-amber-300" /> Upgrade
+            </button>
+          </div>
         </div>
         {modalUI}
       </>
@@ -204,7 +260,15 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
               Unlock priority support, advanced analytics, ad-free experience, and a professional badge on all your listings for just <strong>300 KSH / 30 days</strong>.
             </p>
           </div>
-          <div className="mt-4 sm:mt-0 sm:ml-6 flex-shrink-0">
+          <div className="mt-4 sm:mt-0 sm:ml-6 flex-shrink-0 flex gap-3">
+            {!hasClaimedFreeTrial && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-6 py-3 border border-transparent text-base font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-amber-600 focus:ring-green-500 shadow-sm transition-colors w-full sm:w-auto"
+              >
+                1 Month Free
+              </button>
+            )}
             <button
               onClick={() => setShowModal(true)}
               className="px-6 py-3 border border-transparent text-base font-semibold rounded-md text-orange-700 bg-white hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-amber-600 focus:ring-white shadow-sm transition-colors w-full sm:w-auto"

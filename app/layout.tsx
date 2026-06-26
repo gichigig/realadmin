@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Real Estate Admin",
+  title: "IshinaDwelly Admin",
   description: "Admin panel for managing rental properties",
 };
 

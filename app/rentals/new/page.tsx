@@ -1,17 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { rentalsApi, filesApi, Rental, PropertyType } from "@/lib/api";
+import { rentalsApi, filesApi, Rental, PropertyType, Building, buildingsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { PhotoIcon, XMarkIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import LocationAutocomplete from "@/components/LocationAutocomplete";
-import { LocationSearchResult } from "@/lib/kenya-locations";
-import dynamic from "next/dynamic";
+import Link from "next/link";
 import HashtagsInput from "@/components/HashtagsInput";
-
-const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -68,19 +64,15 @@ export default function NewRentalPage() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
   
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const [formData, setFormData] = useState<Partial<Rental>>({
     title: "",
-    description: "",
+    buildingId: undefined,
     price: 0,
-    address: "",
-    ward: "",
-    constituency: "",
-    county: "",
-    areaName: "",
-    directions: "",
     bedrooms: 1,
     bathrooms: 1,
     squareFeet: 0,
+    floor: undefined,
     propertyType: "APARTMENT",
     status: "ACTIVE",
     petsAllowed: false,
@@ -88,6 +80,18 @@ export default function NewRentalPage() {
     availableFrom: new Date().toISOString().split("T")[0],
     requiresApproval: false,
   });
+
+  useEffect(() => {
+    buildingsApi.getAll().then(setBuildings).catch(console.error);
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const bId = params.get("buildingId");
+      if (bId) {
+        setFormData(prev => ({ ...prev, buildingId: Number(bId) }));
+      }
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -100,26 +104,6 @@ export default function NewRentalPage() {
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setFormData({ ...formData, [name]: checked });
-  };
-
-  const handleLocationChange = (value: string, location?: LocationSearchResult) => {
-    if (location) {
-      // Auto-fill ward, constituency, and county from the selected location
-      setFormData({
-        ...formData,
-        ward: location.ward || "",
-        constituency: location.constituency || "",
-        county: location.county,
-      });
-    } else {
-      // Clear location fields if no location selected
-      setFormData({
-        ...formData,
-        ward: "",
-        constituency: "",
-        county: "",
-      });
-    }
   };
 
   const handleAmenityToggle = (amenity: string) => {
@@ -246,37 +230,19 @@ export default function NewRentalPage() {
 
     // Frontend validation
     const validationErrors: string[] = [];
-    if (!formData.title || formData.title.trim().length < 5) {
-      validationErrors.push("Title must be at least 5 characters");
+    if (!formData.buildingId) {
+      validationErrors.push("Please select a Building");
     }
-    if (!formData.description || formData.description.trim().length === 0) {
-      validationErrors.push("Description is required");
+    if (!formData.title || formData.title.trim().length === 0) {
+      validationErrors.push("Unit/House Name is required");
     }
     if (!formData.price || formData.price <= 0) {
       validationErrors.push("Price must be greater than 0");
-    }
-    if (!formData.address || formData.address.trim().length === 0) {
-      validationErrors.push("Address is required");
-    }
-    if (!formData.ward || formData.ward.trim().length === 0) {
-      validationErrors.push("Ward is required — select a location from the dropdown");
-    }
-    if (!formData.constituency || formData.constituency.trim().length === 0) {
-      validationErrors.push("Constituency is required — select a ward from the dropdown to auto-fill");
-    }
-    if (!formData.county || formData.county.trim().length === 0) {
-      validationErrors.push("County is required — select a ward from the dropdown to auto-fill");
     }
     if (images.length === 0) {
       validationErrors.push("At least one picture is required.");
     }
     
-    if (user?.isPremiumActive || user?.premiumActive) {
-      if (!formData.videoUrl && !formData.compoundVideoUrl) {
-        validationErrors.push("Premium landlords must upload a Main Listing Video or Compound Video.");
-      }
-    }
-
     if (validationErrors.length > 0) {
       alert("Please fix the following:\n\n" + validationErrors.join("\n"));
       return;
@@ -297,11 +263,7 @@ export default function NewRentalPage() {
         hasVideo: (videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
         hashtags: hashtags,
-        // Convert date to full ISO datetime for backend LocalDateTime
         availableFrom: normalizedAvailableFrom,
-        // Use map coordinates or fallback to Nairobi
-        latitude: formData.latitude || -1.2921,
-        longitude: formData.longitude || 36.8219,
       };
 
       await rentalsApi.create(rental, user.id);
@@ -322,12 +284,42 @@ export default function NewRentalPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Select Building */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Select Building Portfolio</h2>
+            <Link
+              href="/buildings/new"
+              className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-700 font-medium"
+            >
+              + Create New Building
+            </Link>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Building/Complex</label>
+            <select
+              name="buildingId"
+              value={formData.buildingId || ""}
+              onChange={(e) => setFormData(prev => ({ ...prev, buildingId: e.target.value ? Number(e.target.value) : undefined }))}
+              required
+              className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            >
+              <option value="">-- Select Building Complex --</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.ward}, {b.county})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Basic Information */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit/House Name</label>
               <input
                 type="text"
                 name="title"
@@ -335,19 +327,7 @@ export default function NewRentalPage() {
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                placeholder="e.g., Modern 2BR Apartment in Downtown"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                required
-                rows={4}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                placeholder="Describe the property..."
+                placeholder="e.g. Apt 4B or House 3"
               />
             </div>
             <div>
@@ -372,97 +352,11 @@ export default function NewRentalPage() {
                 name="price"
                 value={formData.price}
                 onChange={handleInputChange}
+                onWheel={(e) => (e.target as HTMLElement).blur()}
                 required
                 min="1"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Location */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                required
-                placeholder="e.g., Near Mosque, Behind Shopping Center"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <LocationAutocomplete
-                label="Ward"
-                value={formData.ward || ""}
-                onChange={handleLocationChange}
-                placeholder="Search for a ward..."
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Start typing to search for a ward. Constituency and County will be auto-filled.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Constituency</label>
-              <input
-                type="text"
-                value={formData.constituency || ""}
-                readOnly
-                className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
-                placeholder="Auto-filled from ward"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">County</label>
-              <input
-                type="text"
-                value={formData.county || ""}
-                readOnly
-                className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
-                placeholder="Auto-filled from ward"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Area Name (Optional)</label>
-              <input
-                type="text"
-                name="areaName"
-                value={formData.areaName || ""}
-                onChange={handleInputChange}
-                placeholder="e.g., Kilimani, South B, Pangani"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-              <p className="mt-1 text-xs text-gray-500">Local name or nickname for the area</p>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Direction Description (Optional)</label>
-              <textarea
-                name="directions"
-                value={formData.directions || ""}
-                onChange={handleInputChange}
-                rows={3}
-                placeholder="e.g., Located 200m from the main road, next to the petrol station, opposite the green apartment building..."
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
-              />
-              <p className="mt-1 text-xs text-gray-500">Help potential tenants find the property easily</p>
-            </div>
-            <div className="md:col-span-2 mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pinpoint Location on Map</label>
-              <p className="text-xs text-gray-500 mb-3">Click on the map to set the exact location coordinates for this rental.</p>
-              <MapPicker 
-                latitude={formData.latitude || -1.2921} 
-                longitude={formData.longitude || 36.8219} 
-                onChange={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))} 
-              />
-              {formData.latitude && formData.longitude && (
-                <p className="mt-2 text-xs text-green-600">Coordinates selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}</p>
-              )}
             </div>
           </div>
         </div>
@@ -505,6 +399,18 @@ export default function NewRentalPage() {
                 value={formData.squareFeet}
                 onChange={handleInputChange}
                 min="0"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Floor</label>
+              <input
+                type="number"
+                name="floor"
+                value={formData.floor ?? ""}
+                onChange={handleInputChange}
+                min="0"
+                placeholder="e.g. 0 for Ground, 1, 2"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
               />
             </div>

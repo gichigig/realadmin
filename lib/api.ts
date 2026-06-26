@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 const SESSION_EXPIRED_EVENT = "realadmin:session-expired";
 
 // Helper to get token from localStorage
@@ -27,7 +27,7 @@ const authenticatedFetch = async (url: string, options?: RequestInit): Promise<R
     ...options,
     headers: { ...getAuthHeaders(), ...options?.headers },
   });
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     // Token is expired or invalid; clear auth and notify UI to redirect.
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
@@ -36,26 +36,31 @@ const authenticatedFetch = async (url: string, options?: RequestInit): Promise<R
     }
     throw new Error("Session expired. Please log in again.");
   }
+  if (response.status === 403) {
+    throw new Error("Access denied. You do not have permission to perform this action.");
+  }
   return response;
 };
 
 export interface Rental {
   id?: number;
   title: string;
-  description: string;
+  description?: string;
   price: number;
-  address: string;
+  address?: string;
   latitude?: number;
   longitude?: number;
+  buildingId?: number;
   // Kenya location fields
-  ward: string;
-  constituency: string;
-  county: string;
+  ward?: string;
+  constituency?: string;
+  county?: string;
   areaName?: string;
   directions?: string;
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
+  floor?: number;
   propertyType: PropertyType;
   status: RentalStatus;
   imageUrls: string[];
@@ -192,6 +197,19 @@ export interface MonthlyTrend {
   rentalsCreated: number;
   usersRegistered: number;
   messagesCount: number;
+}
+
+export interface Building {
+  id?: number;
+  name: string;
+  ward: string;
+  constituency: string;
+  county: string;
+  latitude?: number;
+  longitude?: number;
+  createdById?: number;
+  createdByName?: string;
+  createdAt?: string;
 }
 
 // Rentals API
@@ -350,6 +368,73 @@ export const rentalsApi = {
   },
 };
 
+// Buildings API
+export const buildingsApi = {
+  getAll: async (): Promise<Building[]> => {
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error("Failed to fetch buildings");
+    return response.json();
+  },
+
+  getById: async (id: number): Promise<Building> => {
+    const response = await fetch(`${API_BASE_URL}/buildings/${id}`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error("Failed to fetch building");
+    return response.json();
+  },
+
+  create: async (building: Building): Promise<Building> => {
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(building)
+    });
+    if (!response.ok) {
+      try {
+        const errorBody = await response.json();
+        throw new Error(errorBody.message || "Failed to create building");
+      } catch (e) {
+        throw new Error("Failed to create building");
+      }
+    }
+    return response.json();
+  },
+
+  update: async (id: number, building: Partial<Building>): Promise<Building> => {
+    const response = await fetch(`${API_BASE_URL}/buildings/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(building)
+    });
+    if (!response.ok) {
+      try {
+        const errorBody = await response.json();
+        if (errorBody.message) throw new Error(errorBody.message);
+      } catch (e) {}
+      throw new Error("Failed to update building");
+    }
+    return response.json();
+  },
+
+  delete: async (id: number): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/buildings/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      try {
+        const errorBody = await response.json();
+        if (errorBody.message) throw new Error(errorBody.message);
+      } catch (e) {}
+      throw new Error("Failed to delete building");
+    }
+  }
+};
+
 // Files API
 type BasicUploadResponse = { filename: string; url: string };
 type FileUrlUploadResponse = { url: string; storage: string };
@@ -446,6 +531,30 @@ export const filesApi = {
     }
   },
 
+  uploadAvatar: async (file: File): Promise<FileUrlUploadResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const token = getToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/files/upload`, { // Using /upload since /avatar might not exist on backend yet
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Please login to upload avatar");
+      }
+      throw new Error("Failed to upload avatar");
+    }
+    return response.json();
+  },
+
   getUrl: (filename: string | undefined | null): string => {
     // Return empty string for undefined/null to prevent "undefined" in URLs
     if (!filename) return '';
@@ -489,6 +598,7 @@ export interface Message {
   content: string;
   messageType?: string;
   mediaUrl?: string;
+  metadata?: string;
   createdAt: string;
   isRead: boolean;
 }
@@ -509,8 +619,8 @@ export interface Conversation {
 
 export const conversationsApi = {
   getAll: async (): Promise<Conversation[]> => {
-    // Use admin endpoint to get all conversations
-    const response = await authenticatedFetch(`${API_BASE_URL}/conversations/all`);
+    // Fetch conversations for the currently authenticated user
+    const response = await authenticatedFetch(`${API_BASE_URL}/conversations`);
     if (!response.ok) throw new Error("Failed to fetch conversations");
     return response.json();
   },
@@ -524,13 +634,23 @@ export const conversationsApi = {
   getMessages: async (conversationId: number): Promise<Message[]> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages`);
     if (!response.ok) throw new Error("Failed to fetch messages");
-    return response.json();
+    const data = await response.json();
+    return data.content || data.messages || data;
   },
 
   sendMessage: async (conversationId: number, content: string): Promise<Message> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages`, {
       method: "POST",
       body: JSON.stringify({ content }),
+    });
+    if (!response.ok) throw new Error("Failed to send message");
+    return response.json();
+  },
+
+  sendCustomMessage: async (conversationId: number, payload: any): Promise<Message> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("Failed to send message");
     return response.json();
@@ -567,6 +687,7 @@ export interface UpdateProfileData {
   firstName: string;
   lastName: string;
   phone?: string;
+  avatarUrl?: string;
 }
 
 export interface ChangePasswordData {
@@ -580,6 +701,7 @@ export interface ProfileResponse {
   firstName: string;
   lastName: string;
   phone: string;
+  avatarUrl?: string;
   role: string;
   message?: string;
 }
@@ -779,8 +901,11 @@ export const superAdminApi = {
     return response.json();
   },
 
-  getAllAdmins: async (): Promise<AdminUser[]> => {
-    const response = await fetch(`${API_BASE_URL}/super-admin/admins`, {
+  getAllAdmins: async (search?: string, page = 0, size = 10): Promise<PageResponse<AdminUser>> => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (search) params.append("search", search);
+    const url = `${API_BASE_URL}/super-admin/admins?${params}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -789,8 +914,11 @@ export const superAdminApi = {
     return response.json();
   },
 
-  getPendingVerifications: async (): Promise<AdminUser[]> => {
-    const response = await fetch(`${API_BASE_URL}/super-admin/admins/pending`, {
+  getPendingVerifications: async (search?: string, page = 0, size = 10): Promise<PageResponse<AdminUser>> => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (search) params.append("search", search);
+    const url = `${API_BASE_URL}/super-admin/admins/pending?${params}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -851,6 +979,28 @@ export const superAdminApi = {
     });
     if (!response.ok) {
       throw new Error("Failed to update user role");
+    }
+    return response.json();
+  },
+
+  grantPremium: async (userId: number, durationDays: number, platform: string): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/users/${userId}/grant-premium`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ durationDays, platform }),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to grant premium");
+    }
+    return response.json();
+  },
+
+  getUserPayments: async (userId: number): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/users/${userId}/payments`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch user payments");
     }
     return response.json();
   },
@@ -950,10 +1100,12 @@ export const helpersApi = {
   getAll: async (
     page = 0,
     size = 20,
+    search?: string,
     verificationStatus?: string,
     blocked?: boolean
   ): Promise<PageResponse<AdminUser>> => {
     const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (search) params.append("search", search);
     if (verificationStatus) params.append("verificationStatus", verificationStatus);
     if (blocked !== undefined) params.append("blocked", blocked.toString());
     const response = await authenticatedFetch(
@@ -1229,9 +1381,7 @@ export const advertisersApi = {
     if (params.status) searchParams.append("status", params.status);
     if (params.blocked !== undefined) searchParams.append("blocked", params.blocked.toString());
     
-    const response = await fetch(`${API_BASE_URL}/advertisers?${searchParams}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers?${searchParams}`);
     if (!response.ok) throw new Error("Failed to fetch advertisers");
     const payload = await response.json();
     return {
@@ -1243,18 +1393,14 @@ export const advertisersApi = {
   },
 
   get: async (id: number): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers/${id}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers/${id}`);
     if (!response.ok) throw new Error("Failed to fetch advertiser");
     const payload = await response.json();
     return mapAdvertiser(payload);
   },
 
   getMe: async (): Promise<Advertiser | null> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers/me`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers/me`);
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       throw new Error(body?.error || body?.message || "Failed to fetch advertiser profile");
@@ -1267,9 +1413,8 @@ export const advertisersApi = {
   },
 
   create: async (data: CreateAdvertiserRequest): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -1281,9 +1426,8 @@ export const advertisersApi = {
   },
 
   update: async (id: number, data: Partial<CreateAdvertiserRequest>): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers/${id}`, {
       method: "PUT",
-      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -1295,9 +1439,8 @@ export const advertisersApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers/${id}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error("Failed to delete advertiser");
   },
@@ -1310,9 +1453,8 @@ export const advertisersApi = {
       additionalDocumentUrl?: string;
     }
   ): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/advertisers/${id}/verification`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/advertisers/${id}/verification`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify({
         businessCertificateUrl: request?.businessCertificateUrl,
         taxRegistrationUrl: request?.taxRegistrationUrl,
@@ -1325,9 +1467,8 @@ export const advertisersApi = {
   },
 
   verify: async (id: number, decision: "VERIFIED" | "REJECTED", notes?: string): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/super-admin/ads/advertisers/verify`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/super-admin/ads/advertisers/verify`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify({
         advertiserId: id,
         approved: decision === "VERIFIED",
@@ -1343,9 +1484,8 @@ export const advertisersApi = {
   },
 
   block: async (id: number, reason: string): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/super-admin/ads/advertisers/${id}/block`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/super-admin/ads/advertisers/${id}/block`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify({ reason }),
     });
     if (!response.ok) throw new Error("Failed to block advertiser");
@@ -1354,9 +1494,8 @@ export const advertisersApi = {
   },
 
   unblock: async (id: number): Promise<Advertiser> => {
-    const response = await fetch(`${API_BASE_URL}/super-admin/ads/advertisers/${id}/unblock`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/super-admin/ads/advertisers/${id}/unblock`, {
       method: "POST",
-      headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error("Failed to unblock advertiser");
     const payload = await response.json();

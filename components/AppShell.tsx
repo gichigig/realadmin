@@ -99,7 +99,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Bars3Icon className="w-6 h-6" />
           </button>
-          <h1 className="ml-3 text-lg font-semibold text-gray-900">Real Estate Admin</h1>
+          <h1 className="ml-3 text-lg font-semibold text-gray-900">IshinaDwelly Admin</h1>
         </header>
         
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">{children}</main>

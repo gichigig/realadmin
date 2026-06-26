@@ -69,7 +69,7 @@ export default function ChooseRolePage() {
       <div className="max-w-4xl w-full space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight sm:text-4xl">
-            How do you want to use Real Estate?
+            How do you want to use IshinaDwelly?
           </h2>
           <p className="mt-4 text-lg text-gray-500">
             Choose your primary role. This determines what dashboard you will see.

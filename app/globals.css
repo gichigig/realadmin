@@ -81,3 +81,16 @@ input::placeholder, textarea::placeholder {
   font-weight: 600;
   color: #111827;
 }
+
+/* Remove arrows/spinners from number inputs completely */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]:hover::-webkit-inner-spin-button,
+input[type=number]:focus::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type=number] {
+  -moz-appearance: textfield !important;
+}

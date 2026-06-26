@@ -29,6 +29,7 @@ import {
 
 const landlordNavigation = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
+  { name: "Buildings", href: "/buildings", icon: BuildingOfficeIcon },
   { name: "Rentals", href: "/rentals", icon: BuildingOfficeIcon },
   { name: "Add Rental", href: "/rentals/new", icon: PlusCircleIcon },
   { name: "Messages", href: "/messages", icon: ChatBubbleLeftRightIcon },
@@ -148,7 +149,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         {/* Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
           {!isCollapsed && (
-            <h1 className="text-xl font-bold truncate">Real Estate Admin</h1>
+            <h1 className="text-xl font-bold truncate">IshinaDwelly Admin</h1>
           )}
           {isCollapsed && (
             <div className="w-full flex justify-center">

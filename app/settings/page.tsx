@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { accountApi } from "@/lib/api";
+import { accountApi, filesApi } from "@/lib/api";
 import {
   UserCircleIcon,
   KeyIcon,
@@ -65,12 +65,14 @@ const extractTotpSecretFromUri = (otpauthUri?: string): string => {
 export default function SettingsPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, updateUser, logout } = useAuth();
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
   
   // Profile form state
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState("");
   const [profileError, setProfileError] = useState("");
@@ -102,6 +104,7 @@ export default function SettingsPage() {
       setFirstName(user.firstName || "");
       setLastName(user.lastName || "");
       setPhone(user.phone || "");
+      setAvatarUrl(user.avatarUrl || "");
     }
   }, [user]);
 
@@ -148,15 +151,24 @@ export default function SettingsPage() {
     setProfileLoading(true);
 
     try {
+      let finalAvatarUrl = avatarUrl;
+      if (avatarFile) {
+        const uploadRes = await filesApi.uploadAvatar(avatarFile);
+        finalAvatarUrl = uploadRes.url;
+        setAvatarUrl(finalAvatarUrl);
+      }
+
       const response = await accountApi.updateProfile({
         firstName,
         lastName,
         phone,
+        avatarUrl: finalAvatarUrl,
       });
       updateUser({
         firstName: response.firstName,
         lastName: response.lastName,
         phone: response.phone,
+        avatarUrl: response.avatarUrl,
       });
       setProfileSuccess("Profile updated successfully!");
       setTimeout(() => setProfileSuccess(""), 3000);
@@ -562,12 +574,38 @@ export default function SettingsPage() {
       <div className="space-y-6 max-w-2xl">
         {/* Profile Information */}
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <UserCircleIcon className="h-6 w-6 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
-          </div>
+          <h2 className="text-xl font-semibold mb-6 flex items-center">
+            <UserCircleIcon className="w-6 h-6 mr-2 text-indigo-500" />
+            Profile Information
+          </h2>
+          <form onSubmit={handleProfileUpdate} className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100 border-2 border-indigo-100 flex-shrink-0">
+                {avatarFile ? (
+                  <img src={URL.createObjectURL(avatarFile)} alt="Avatar Preview" className="w-full h-full object-cover" />
+                ) : avatarUrl ? (
+                  <img src={filesApi.getUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircleIcon className="w-full h-full text-gray-300" />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Picture</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setAvatarFile(e.target.files[0]);
+                    }
+                  }}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">JPG, PNG or GIF. Max size 2MB.</p>
+              </div>
+            </div>
 
-          <form onSubmit={handleProfileUpdate} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {profileSuccess && (
               <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
                 <CheckCircleIcon className="h-5 w-5" />
@@ -667,16 +705,17 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={profileLoading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {profileLoading ? "Saving..." : "Save Changes"}
-            </button>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={profileLoading}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {profileLoading ? "Saving..." : "Save Changes"}
+          </button>
+        </form>
+      </div>
 
         {/* Change Password */}
         <div className="bg-white rounded-lg shadow p-6">

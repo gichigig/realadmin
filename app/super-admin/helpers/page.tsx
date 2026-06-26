@@ -334,6 +334,7 @@ export default function HelpersPage() {
       const data: PageResponse<AdminUser> = await helpersApi.getAll(
         page,
         pageSize,
+        search,
         verificationFilter || undefined,
         blocked
       );
@@ -345,7 +346,7 @@ export default function HelpersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, verificationFilter, blockedFilter]);
+  }, [page, search, verificationFilter, blockedFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -357,10 +358,13 @@ export default function HelpersPage() {
   }, []);
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      fetchHelpers();
-      fetchStats();
-    }
+    const handler = setTimeout(() => {
+      if (isSuperAdmin) {
+        fetchHelpers();
+        fetchStats();
+      }
+    }, 300);
+    return () => clearTimeout(handler);
   }, [isSuperAdmin, fetchHelpers, fetchStats]);
 
   // ── Actions ────────────────────────────────────────────────────
@@ -531,13 +535,14 @@ export default function HelpersPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[300px]">
+        {loading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">Loading helpers…</p>
+            <p className="text-sm text-gray-500 font-medium">Loading helpers…</p>
           </div>
-        ) : filtered.length === 0 ? (
+        )}
+        {filtered.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400">
             <WrenchScrewdriverIcon className="h-14 w-14 mb-3 text-gray-200" />
             <p className="text-base font-medium text-gray-500">No helpers found</p>
