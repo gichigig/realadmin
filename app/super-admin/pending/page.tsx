@@ -48,8 +48,8 @@ export default function SuperAdminPendingPage() {
         superAdminApi.getPendingVerifications(),
         superAdminApi.getPendingRentals(),
       ]);
-      setPendingUsers(users);
-      setPendingRentals(rentals);
+      setPendingUsers(users.content || []);
+      setPendingRentals(rentals.content || []);
     } catch (err) {
       setError("Failed to load pending items");
     } finally {
