@@ -9,8 +9,11 @@ import {
   MagnifyingGlassCircleIcon,
   XMarkIcon
 } from "@heroicons/react/24/outline";
-import { StarIcon } from "@heroicons/react/24/solid"; export default function PremiumBanner({ children }: { children?: React.ReactNode }) {
-  const router = useRouter();
+import { StarIcon } from "@heroicons/react/24/solid";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
+
+export default function PremiumBanner({ children }: { children?: React.ReactNode }) {
   const { user, refreshUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [phone, setPhone] = useState(user?.phone || "");
@@ -112,7 +115,7 @@ import { StarIcon } from "@heroicons/react/24/solid"; export default function Pr
     
     try {
       const token = localStorage.getItem("dwelly_token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/premium/claim-free-month`, {
+      const res = await fetch(`${API_BASE_URL}/premium/claim-free-month`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
