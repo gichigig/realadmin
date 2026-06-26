@@ -42,7 +42,7 @@ export default function SuperAdminDashboard() {
         superAdminApi.getPendingVerifications(),
       ]);
       setStats(statsData);
-      setPendingUsers(pendingData);
+      setPendingUsers(pendingData.content || []);
     } catch (err) {
       setError("Failed to load super admin data");
     } finally {
