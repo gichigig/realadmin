@@ -114,7 +114,7 @@ export default function PremiumBanner({ children }: { children?: React.ReactNode
     setMessage("Activating your 1 month free trial...");
     
     try {
-      const token = localStorage.getItem("dwelly_token");
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/premium/claim-free-month`, {
         method: "POST",
         headers: {
