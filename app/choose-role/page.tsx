@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BuildingOfficeIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "@/lib/auth-context";
 import { accountApi } from "@/lib/api";
 
-export default function ChooseRolePage() {
+function ChooseRoleForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email");
@@ -113,5 +113,13 @@ export default function ChooseRolePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChooseRolePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ChooseRoleForm />
+    </Suspense>
   );
 }

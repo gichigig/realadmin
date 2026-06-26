@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-export default function EmailVerificationPage() {
+function EmailVerificationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, updateUser } = useAuth();
@@ -291,5 +291,13 @@ export default function EmailVerificationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EmailVerificationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <EmailVerificationForm />
+    </Suspense>
   );
 }

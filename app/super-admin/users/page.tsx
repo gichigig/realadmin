@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { superAdminApi, AdminUser } from "@/lib/api";
@@ -14,7 +14,7 @@ import {
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
-export default function SuperAdminUsersPage() {
+function SuperAdminUsersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isSuperAdmin, isLoading } = useAuth();
@@ -614,5 +614,13 @@ export default function SuperAdminUsersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SuperAdminUsersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div></div>}>
+      <SuperAdminUsersPageContent />
+    </Suspense>
   );
 }
