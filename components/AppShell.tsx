@@ -20,6 +20,7 @@ const publicPaths = [
   "/verify-email",
   "/landing",
   "/payments/mpesa",
+  "/delete-account",
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
