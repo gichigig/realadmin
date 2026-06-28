@@ -418,11 +418,12 @@ export default function MessagesPage() {
       alert("Geolocation is not supported by your browser");
       return;
     }
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      if (!selectedConversation) return;
-      setSending(true);
-      try {
-        const message = await conversationsApi.sendCustomMessage(selectedConversation.id, {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        if (!selectedConversation) return;
+        setSending(true);
+        try {
+          const message = await conversationsApi.sendCustomMessage(selectedConversation.id, {
           content: "Shared current location",
           messageType: "LOCATION",
           metadata: JSON.stringify({ lat: position.coords.latitude, lng: position.coords.longitude })
