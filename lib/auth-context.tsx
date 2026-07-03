@@ -185,7 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: data.role,
       emailVerified: data.emailVerified,
       premiumActive: data.premiumActive,
-      isPremiumActive: data.premiumActive,
+      isPremiumActive: data.premiumActive || data.realadminPremiumActive,
+      realadminPremiumActive: data.realadminPremiumActive,
+      realadminFreeMonthClaimed: data.realadminFreeMonthClaimed,
     };
     setUser(userData);
     localStorage.setItem("token", data.token);
