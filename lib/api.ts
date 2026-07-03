@@ -1004,6 +1004,24 @@ export const superAdminApi = {
     }
     return response.json();
   },
+
+  sendSuperAdminPushNotification: async (data: {
+    title: string;
+    body: string;
+    targetType: "ALL" | "NEW_USERS" | "ROLE" | "AREA" | "SELECTED_USERS";
+    targetValue?: string;
+    notificationType?: string;
+    referenceId?: number;
+    link?: string;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/notifications/send`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error("Failed to send push notification");
+    return response.json();
+  },
 };
 
 // ─── Rental Payment (Video & Sponsorship) API ──────────────────────────────

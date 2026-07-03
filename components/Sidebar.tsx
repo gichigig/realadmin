@@ -25,6 +25,7 @@ import {
   AdjustmentsHorizontalIcon,
   PresentationChartLineIcon,
   WrenchScrewdriverIcon,
+  BellAlertIcon,
 } from "@heroicons/react/24/outline";
 
 const landlordNavigation = [
@@ -56,9 +57,9 @@ const superAdminNavigation = [
   { name: "All Rentals", href: "/super-admin/rentals", icon: BuildingOfficeIcon },
   { name: "Pending Approvals", href: "/super-admin/pending", icon: ClipboardDocumentCheckIcon },
   { name: "Reports", href: "/super-admin/reports", icon: FlagIcon },
-  { name: "Sponsored Ads", href: "/super-admin/sponsored-ads", icon: MegaphoneIcon },
   { name: "Ad Settings", href: "/super-admin/ad-settings", icon: AdjustmentsHorizontalIcon },
   { name: "Ad Analytics", href: "/super-admin/ad-analytics", icon: PresentationChartLineIcon },
+  { name: "Push Notifications", href: "/super-admin/notifications", icon: BellAlertIcon },
 ];
 
 interface SidebarProps {

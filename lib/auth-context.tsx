@@ -372,6 +372,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    if (token) {
+      fetch(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem("token");
