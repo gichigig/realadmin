@@ -2316,7 +2316,7 @@ export const helperApi = {
     return response.json();
   },
 
-  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[] }) => {
+  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[]; serviceCategory?: string }) => {
     const response = await fetch(`${API_BASE_URL}/helper/profile`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -2341,6 +2341,30 @@ export const helperApi = {
     }
     return response.json();
   },
+};
+
+export const SERVICE_CATEGORIES = [
+  "Mama Fua",
+  "House cleaning",
+  "Gas delivery",
+  "Food delivery",
+  "Grocery delivery",
+  "Boda delivery",
+  "Parcel delivery",
+  "Plumber",
+  "Electrician",
+  "Carpenter",
+  "Mobile mechanic",
+  "Barber/Hairdresser at home",
+  "Babysitter",
+  "House moving",
+  "Water delivery",
+];
+
+export const servicesApi = {
+  getDashboard: helperApi.getDashboard,
+  updateProfile: helperApi.updateProfile,
+  withdraw: helperApi.withdraw,
 };
 
 export const helperJobsApi = {

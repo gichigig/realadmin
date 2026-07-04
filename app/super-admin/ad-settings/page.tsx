@@ -13,10 +13,23 @@ import {
   MapPinIcon,
   MegaphoneIcon,
   ArrowTrendingUpIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 
 const CONFIG_KEYS = {
+  ALL_ADS_SUSPENDED: {
+    key: "ALL_ADS_SUSPENDED",
+    label: "Suspend All Google Ads",
+    description: "Kill-switch: Immediately suppress all Google Ads app-wide for all users (in-house ads unaffected)",
+    type: "boolean"
+  },
+  PREMIUM_PAGE_ENABLED: {
+    key: "PREMIUM_PAGE_ENABLED",
+    label: "Premium Page Enabled",
+    description: "Show or hide the Dwelly Premium subscription page and upsell screens across the app",
+    type: "boolean"
+  },
   RENTAL_FEED_INTERVALS: {
     key: "RENTAL_FEED_INTERVALS",
     label: "Rental Feed Ad Positions",
@@ -184,6 +197,38 @@ export default function AdSettingsPage() {
 
       {activeTab === "display" ? (
         <div className="space-y-6">
+          {/* Global Controls */}
+          <div className="bg-red-50 border border-red-200 rounded-lg shadow p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+              <h2 className="text-lg font-semibold text-red-900">Global Kill-Switches & Controls</h2>
+            </div>
+            <div className="space-y-4">
+              <ConfigToggle
+                config={CONFIG_KEYS.ALL_ADS_SUSPENDED}
+                value={config[CONFIG_KEYS.ALL_ADS_SUSPENDED.key] || "false"}
+                onToggle={() =>
+                  handleToggle(
+                    CONFIG_KEYS.ALL_ADS_SUSPENDED.key,
+                    config[CONFIG_KEYS.ALL_ADS_SUSPENDED.key] || "false"
+                  )
+                }
+                saving={saving === CONFIG_KEYS.ALL_ADS_SUSPENDED.key}
+              />
+              <ConfigToggle
+                config={CONFIG_KEYS.PREMIUM_PAGE_ENABLED}
+                value={config[CONFIG_KEYS.PREMIUM_PAGE_ENABLED.key] || "true"}
+                onToggle={() =>
+                  handleToggle(
+                    CONFIG_KEYS.PREMIUM_PAGE_ENABLED.key,
+                    config[CONFIG_KEYS.PREMIUM_PAGE_ENABLED.key] || "true"
+                  )
+                }
+                saving={saving === CONFIG_KEYS.PREMIUM_PAGE_ENABLED.key}
+              />
+            </div>
+          </div>
+
           {/* App Launch Ads */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-4">

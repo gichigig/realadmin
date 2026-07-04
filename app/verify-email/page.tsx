@@ -126,7 +126,7 @@ function EmailVerificationForm() {
         setTimeout(() => {
           if (isAuthenticated) {
             const workspace = localStorage.getItem("workspaceMode");
-            router.push(workspace === "helper" ? "/helper" : "/");
+            router.push(workspace === "services" ? "/services" : (workspace === "helper" ? "/helper" : "/"));
           } else {
             router.push("/login?verified=true");
           }

@@ -49,6 +49,8 @@ export interface User {
   premiumActive?: boolean;
   realadminPremiumActive?: boolean;
   realadminFreeMonthClaimed?: boolean;
+  primaryRole?: string;
+  serviceCategory?: string;
 }
 
 export interface AuthResponse {
@@ -68,6 +70,8 @@ export interface AuthResponse {
   realadminFreeMonthClaimed?: boolean;
   premiumStartedAt?: string;
   premiumExpiresAt?: string;
+  primaryRole?: string;
+  serviceCategory?: string;
 }
 
 export interface MfaChallenge {

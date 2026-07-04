@@ -4,7 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { accountApi } from "@/lib/api";
+import { accountApi, SERVICE_CATEGORIES, servicesApi } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
 
 function SignupForm() {
@@ -24,6 +24,8 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>(targetRole || "landlord");
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get("category") || SERVICE_CATEGORIES[0]);
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,12 +57,19 @@ function SignupForm() {
         phone: formData.phone || undefined,
       });
 
-      if (targetRole) {
-        await accountApi.setPrimaryRole(targetRole);
+      const roleToSet = targetRole || selectedRole;
+      if (roleToSet) {
+        await accountApi.setPrimaryRole(roleToSet);
+        if (roleToSet === "services" && selectedCategory) {
+          try { await servicesApi.updateProfile({ serviceCategory: selectedCategory }); } catch {}
+        }
+        localStorage.setItem("workspaceMode", roleToSet);
         if (source === 'dwelly') {
           router.push('/return-to-app');
           return;
         }
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+        return;
       }
       
       router.push(`/choose-role?email=${encodeURIComponent(formData.email)}`);
@@ -80,12 +89,19 @@ function SignupForm() {
     setError("");
     try {
       await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
-      if (targetRole) {
-        await accountApi.setPrimaryRole(targetRole);
+      const roleToSet = targetRole || selectedRole;
+      if (roleToSet) {
+        await accountApi.setPrimaryRole(roleToSet);
+        if (roleToSet === "services" && selectedCategory) {
+          try { await servicesApi.updateProfile({ serviceCategory: selectedCategory }); } catch {}
+        }
+        localStorage.setItem("workspaceMode", roleToSet);
         if (source === 'dwelly') {
           router.push('/return-to-app');
           return;
         }
+        router.push(roleToSet === "services" ? "/services" : (roleToSet === "helper" ? "/helper" : "/"));
+        return;
       }
       router.push("/choose-role");
     } catch (err) {
@@ -181,6 +197,45 @@ function SignupForm() {
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
               />
             </div>
+
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                Primary Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+              >
+                <option value="landlord">Landlord</option>
+                <option value="helper">Helper (General maintenance & property jobs)</option>
+                <option value="services">Services (Mama Fua, Plumber, Delivery, etc.)</option>
+              </select>
+            </div>
+
+            {selectedRole === "services" && (
+              <div>
+                <label htmlFor="serviceCategory" className="block text-sm font-medium text-gray-700">
+                  Select Service Category
+                </label>
+                <select
+                  id="serviceCategory"
+                  name="serviceCategory"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                >
+                  {SERVICE_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">

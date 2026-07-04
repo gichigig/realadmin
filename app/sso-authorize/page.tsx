@@ -53,7 +53,7 @@ export default function SsoAuthorizePage() {
   const handleCancel = () => {
     // Just close or redirect to home
     const workspace = localStorage.getItem("workspaceMode") || "landlord";
-    router.push(workspace === "helper" ? "/helper" : "/");
+    router.push(workspace === "services" ? "/services" : (workspace === "helper" ? "/helper" : "/"));
   };
 
   if (isLoading || !isAuthenticated) {

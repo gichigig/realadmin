@@ -47,6 +47,11 @@ const helperNavigation = [
   { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
 ];
 
+const servicesNavigation = [
+  { name: "Services Dashboard", href: "/services", icon: WrenchScrewdriverIcon },
+  { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
+];
+
 const superAdminNavigation = [
   { name: "Super Admin", href: "/super-admin", icon: ShieldCheckIcon },
   { name: "Verify Businesses", href: "/advertisers/verify", icon: UserGroupIcon },
@@ -73,23 +78,29 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isAuthenticated, isSuperAdmin } = useAuth();
-  const [workspace, setWorkspace] = useState<"landlord" | "helper">("landlord");
+  const [workspace, setWorkspace] = useState<"landlord" | "helper" | "services">("landlord");
 
   useEffect(() => {
-    const saved = localStorage.getItem("workspaceMode");
-    if (saved === "helper" || saved === "landlord") {
-      setWorkspace(saved);
+    if (pathname.startsWith("/services") || user?.primaryRole === "services") {
+      setWorkspace("services");
+    } else if (pathname.startsWith("/helper") || user?.primaryRole === "helper") {
+      setWorkspace("helper");
+    } else {
+      const saved = localStorage.getItem("workspaceMode");
+      if (saved === "helper" || saved === "landlord" || saved === "services") {
+        setWorkspace(saved as any);
+      }
     }
-  }, []);
+  }, [pathname, user?.primaryRole]);
 
-  const handleWorkspaceChange = (newWorkspace: "landlord" | "helper") => {
+  const handleWorkspaceChange = (newWorkspace: "landlord" | "helper" | "services") => {
     setWorkspace(newWorkspace);
     localStorage.setItem("workspaceMode", newWorkspace);
   };
 
   const navItems = useMemo(
     () => {
-      let baseNav = workspace === "helper" ? helperNavigation : landlordNavigation;
+      let baseNav = workspace === "services" ? servicesNavigation : (workspace === "helper" ? helperNavigation : landlordNavigation);
       return isSuperAdmin ? [...baseNav, ...superAdminNavigation] : baseNav;
     },
     [isSuperAdmin, workspace]
@@ -166,7 +177,40 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </button>
         </div>
 
-        {/* Navigation */}        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
+        {/* Workspace Switcher */}
+        {!isCollapsed && (
+          <div className="px-3 pt-4 pb-1">
+            <div className="bg-gray-800 p-1 rounded-lg flex text-xs">
+              <button
+                onClick={() => { handleWorkspaceChange("landlord"); router.push("/"); }}
+                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                  workspace === "landlord" ? "bg-blue-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Landlord
+              </button>
+              <button
+                onClick={() => { handleWorkspaceChange("helper"); router.push("/helper"); }}
+                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                  workspace === "helper" ? "bg-purple-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Helper
+              </button>
+              <button
+                onClick={() => { handleWorkspaceChange("services"); router.push("/services"); }}
+                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                  workspace === "services" ? "bg-emerald-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Services
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
           {navItems.filter(item => !superAdminNavigation.includes(item)).map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== "/" && pathname.startsWith(item.href) && !pathname.startsWith("/super-admin"));

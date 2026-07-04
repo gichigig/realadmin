@@ -72,14 +72,14 @@ function LoginForm() {
         const user = JSON.parse(userJson);
         if (user.primaryRole) {
           localStorage.setItem("workspaceMode", user.primaryRole);
-          router.push(user.primaryRole === "helper" ? "/helper" : "/");
+          router.push(user.primaryRole === "services" ? "/services" : (user.primaryRole === "helper" ? "/helper" : "/"));
           return;
         }
       } catch { }
     }
     const wsMode = localStorage.getItem("workspaceMode");
     if (wsMode) {
-      router.push(wsMode === "helper" ? "/helper" : "/");
+      router.push(wsMode === "services" ? "/services" : (wsMode === "helper" ? "/helper" : "/"));
       return;
     }
     router.push("/choose-role");
