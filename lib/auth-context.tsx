@@ -135,10 +135,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
             setToken(storedToken);
             return res.json();
-          } else {
+          } else if (res.status === 401 || res.status === 403) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             return null;
+          } else {
+            throw new Error(`Server error: ${res.status}`);
           }
         })
         .then((userData) => {

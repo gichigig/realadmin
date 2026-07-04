@@ -43,7 +43,7 @@ export default function HelperDashboard() {
       setWards(res.helperWards || []);
       
       const jobsRes = await helperJobsApi.getHelperJobs();
-      setJobs(jobsRes);
+      setJobs(Array.isArray(jobsRes) ? jobsRes : (jobsRes?.content || []));
 
       const tree = await locationsApi.getTree();
       setLocationTree(tree);
@@ -337,13 +337,13 @@ export default function HelperDashboard() {
               <h3 className="text-lg font-bold text-gray-900">My Jobs</h3>
             </div>
             <div className="flex-1 overflow-y-auto max-h-80 p-0">
-              {jobs.length === 0 ? (
+              {(Array.isArray(jobs) ? jobs : []).length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   No jobs found.
                 </div>
               ) : (
                 <ul className="divide-y divide-gray-100">
-                  {jobs.map((job: any) => (
+                  {(Array.isArray(jobs) ? jobs : []).map((job: any) => (
                     <li key={job.id} className="p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-medium text-gray-900">
