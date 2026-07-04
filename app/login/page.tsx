@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth, MfaChallenge } from "@/lib/auth-context";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { GoogleLogin } from "@react-oauth/google";
 
 type MfaMethod = "PASSKEY" | "TOTP" | "RECOVERY";
@@ -290,13 +289,6 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative">
-      <Link
-        href="/"
-        className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
-      >
-        <ArrowLeftIcon className="w-5 h-5" />
-        <span className="font-medium">Back to Home</span>
-      </Link>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center">
@@ -364,7 +356,10 @@ function LoginForm() {
                 placeholder="••••••••"
               />
               {!requiresMfa && (
-                <div className="mt-1 text-right">
+                <div className="mt-1 flex items-center justify-between">
+                  <Link href="/" className="text-sm text-blue-600 hover:text-blue-500">
+                    Back
+                  </Link>
                   <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
                     Forgot password?
                   </Link>
