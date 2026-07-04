@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { accountApi } from "@/lib/api";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { GoogleLogin } from "@react-oauth/google";
 
 function SignupForm() {
@@ -98,13 +97,6 @@ function SignupForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative">
-      <Link
-        href="/"
-        className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
-      >
-        <ArrowLeftIcon className="w-5 h-5" />
-        <span className="font-medium">Back to Home</span>
-      </Link>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center">
@@ -221,6 +213,11 @@ function SignupForm() {
                 onChange={handleChange}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
               />
+              <div className="mt-1 flex items-center justify-start">
+                <Link href="/" className="text-sm text-blue-600 hover:text-blue-500">
+                  Back
+                </Link>
+              </div>
             </div>
           </div>
 
