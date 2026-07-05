@@ -85,7 +85,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex items-center justify-center">
-                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl shadow-md border border-gray-100 bg-white" />
+                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-full" />
               </div>
               <span className="text-2xl font-bold text-gray-900 tracking-tight">IshinaDwelly</span>
             </div>

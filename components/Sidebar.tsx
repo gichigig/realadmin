@@ -155,17 +155,20 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           transform transition-all duration-300 ease-in-out
           lg:h-screen lg:overflow-y-auto
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-          ${isCollapsed ? "lg:w-20" : "w-64"}
+          ${isCollapsed ? "lg:w-16" : "w-56"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
+        <div className="flex items-center justify-between h-13 px-3 border-b border-gray-800">
           {!isCollapsed && (
-            <h1 className="text-xl font-bold truncate">IshinaDwelly Admin</h1>
+            <div className="flex items-center space-x-2 min-w-0">
+              <img src="/icon.png" alt="Dwelly Logo" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+              <h1 className="text-base font-bold truncate">IshinaDwelly Admin</h1>
+            </div>
           )}
           {isCollapsed && (
             <div className="w-full flex justify-center">
-              <span className="text-xl font-bold">RE</span>
+              <img src="/icon.png" alt="Dwelly Logo" className="w-7 h-7 rounded-full object-cover" />
             </div>
           )}
           {/* Mobile close button */}

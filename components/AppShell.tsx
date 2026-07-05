@@ -7,6 +7,7 @@ import Sidebar from "./Sidebar";
 import LandingPage from "./LandingPage";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import GoogleAdBanner from "./GoogleAdBanner";
+import DwellyOrbitingLoader from "./DwellyOrbitingLoader";
 
 const publicPaths = [
   "/login", 
@@ -28,7 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isLoading, isAuthenticated, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   const isPublicPath = publicPaths.includes(pathname);
   const isHomePage = pathname === "/";
@@ -68,7 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (isLoading || (isAuthenticated && user && user.emailVerified === false)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }
@@ -88,19 +89,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       />
       
       {/* Sidebar spacer for desktop - pushes content over */}
-      <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-20" : "w-64"}`} />
+      <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-16" : "w-56"}`} />
       
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Mobile header */}
-        <header className="lg:hidden flex-shrink-0 flex items-center h-16 px-4 bg-white border-b border-gray-200 shadow-sm">
+        <header className="lg:hidden flex-shrink-0 flex items-center h-13 px-3 bg-white border-b border-gray-200 shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            className="p-1.5 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
           >
-            <Bars3Icon className="w-6 h-6" />
+            <Bars3Icon className="w-5 h-5" />
           </button>
-          <h1 className="ml-3 text-lg font-semibold text-gray-900">IshinaDwelly Admin</h1>
+          <img src="/icon.png" alt="Dwelly Logo" className="ml-2 w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          <h1 className="ml-2 text-base font-semibold text-gray-900 truncate">IshinaDwelly Admin</h1>
         </header>
         
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">{children}</main>

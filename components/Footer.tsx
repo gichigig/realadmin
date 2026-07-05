@@ -30,7 +30,7 @@ export default function Footer() {
           <div className="col-span-1">
             <div className="flex items-center space-x-2 mb-4">
               <div className="flex items-center justify-center">
-                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl shadow-md border border-gray-700 bg-gray-800" />
+                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-full" />
               </div>
               <span className="text-xl font-bold text-white">IshinaDwelly</span>
             </div>
