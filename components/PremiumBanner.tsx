@@ -14,7 +14,7 @@ import { StarIcon } from "@heroicons/react/24/solid";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 
 export default function PremiumBanner({ children }: { children?: React.ReactNode }) {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [phone, setPhone] = useState(user?.phone || "");
   const [processing, setProcessing] = useState(false);
@@ -89,7 +89,15 @@ export default function PremiumBanner({ children }: { children?: React.ReactNode
           if (status.status === "COMPLETED") {
             setStatus("SUCCESS");
             setMessage("Payment successful! Welcome to Landlord Pro.");
-            // Refresh user context to get new premium flag
+            // Immediately update local user state for instantaneous UI response
+            if (updateUser) {
+              updateUser({
+                realadminPremiumActive: true,
+                isPremiumActive: true,
+                premiumActive: true,
+              });
+            }
+            // Refresh user context from backend
             if (refreshUser) {
               refreshUser();
             }
@@ -125,6 +133,15 @@ export default function PremiumBanner({ children }: { children?: React.ReactNode
       if (res.ok) {
         setStatus("SUCCESS");
         setMessage("Free trial activated successfully! Welcome to Landlord Pro.");
+        // Immediately update local user state for instantaneous UI response
+        if (updateUser) {
+          updateUser({
+            realadminFreeMonthClaimed: true,
+            realadminPremiumActive: true,
+            isPremiumActive: true,
+            premiumActive: true,
+          });
+        }
         if (refreshUser) {
           refreshUser();
         }

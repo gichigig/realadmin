@@ -21,10 +21,22 @@ const fetchWithTimeout = async (
   }
 };
 
+const normalizeUser = (user: any): User | null => {
+  if (!user) return null;
+  const isPrem = Boolean(user.isPremiumActive || user.premiumActive || user.realadminPremiumActive);
+  return {
+    ...user,
+    isPremiumActive: isPrem,
+    premiumActive: isPrem,
+    realadminPremiumActive: Boolean(user.realadminPremiumActive || user.isPremiumActive || isPrem),
+  };
+};
+
 const parseStoredUser = (raw: string | null): User | null => {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as User;
+    const parsed = JSON.parse(raw);
+    return normalizeUser(parsed);
   } catch {
     return null;
   }
@@ -145,8 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .then((userData) => {
           if (userData) {
-            setUser(userData);
-            localStorage.setItem("user", JSON.stringify(userData));
+            const normalized = normalizeUser(userData)!;
+            setUser(normalized);
+            localStorage.setItem("user", JSON.stringify(normalized));
           }
           setIsLoading(false);
         })
@@ -181,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyAuthResponse = (data: AuthResponse) => {
     setToken(data.token);
-    const userData: User = {
+    const userData: User = normalizeUser({
       id: data.id,
       email: data.email,
       firstName: data.firstName,
@@ -196,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       realadminFreeMonthClaimed: data.realadminFreeMonthClaimed,
       primaryRole: data.primaryRole,
       serviceCategory: data.serviceCategory,
-    };
+    })!;
     setUser(userData);
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(userData));
@@ -229,9 +242,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: { Authorization: `Bearer ${(data.auth as AuthResponse).token}` },
         });
         if (meRes.ok) {
-          const fullUser: User = await meRes.json();
-          setUser(fullUser);
-          localStorage.setItem("user", JSON.stringify(fullUser));
+          const fullUser = normalizeUser(await meRes.json());
+          if (fullUser) {
+            setUser(fullUser);
+            localStorage.setItem("user", JSON.stringify(fullUser));
+          }
         }
       } catch (e) {
         // Non-critical — applyAuthResponse already set basic user data
@@ -396,9 +411,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (userData: Partial<User>) => {
     if (user) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      const updatedUser = normalizeUser({ ...user, ...userData });
+      if (updatedUser) {
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
     }
   };
 
@@ -411,9 +428,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        const userData: User = await response.json();
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
+        const userData = normalizeUser(await response.json());
+        if (userData) {
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        }
       }
     } catch (error) {
       console.error("Failed to refresh user:", error);
