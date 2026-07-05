@@ -35,6 +35,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
+    user,
     login,
     verifyTotpLogin,
     verifyRecoveryLogin,
@@ -66,22 +67,40 @@ function LoginForm() {
       router.push(redirect);
       return;
     }
-    const userJson = localStorage.getItem("user");
-    if (userJson) {
-      try {
-        const user = JSON.parse(userJson);
-        if (user.primaryRole) {
-          localStorage.setItem("workspaceMode", user.primaryRole);
-          router.push(user.primaryRole === "services" ? "/services" : (user.primaryRole === "helper" ? "/helper" : "/"));
-          return;
-        }
-      } catch { }
+    
+    // Check both React auth context user and localStorage user
+    let primaryRole = user?.primaryRole;
+    let userRole = user?.role;
+    if (!primaryRole || !userRole) {
+      const userJson = localStorage.getItem("user");
+      if (userJson) {
+        try {
+          const parsedUser = JSON.parse(userJson);
+          primaryRole = primaryRole || parsedUser.primaryRole;
+          userRole = userRole || parsedUser.role;
+        } catch { }
+      }
     }
+
+    if (primaryRole) {
+      localStorage.setItem("workspaceMode", primaryRole);
+      router.push(primaryRole === "services" ? "/services" : (primaryRole === "helper" ? "/helper" : "/"));
+      return;
+    }
+
+    // If no primary role is set, but they are an admin or super admin, default to Landlord root (/)
+    if (userRole === "ADMIN" || userRole === "SUPER_ADMIN") {
+      localStorage.setItem("workspaceMode", "landlord");
+      router.push("/");
+      return;
+    }
+
     const wsMode = localStorage.getItem("workspaceMode");
-    if (wsMode) {
+    if (wsMode && (wsMode === "landlord" || wsMode === "helper" || wsMode === "services")) {
       router.push(wsMode === "services" ? "/services" : (wsMode === "helper" ? "/helper" : "/"));
       return;
     }
+
     router.push("/choose-role");
   };
 
