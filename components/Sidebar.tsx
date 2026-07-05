@@ -81,6 +81,13 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const [workspace, setWorkspace] = useState<"landlord" | "helper" | "services">("landlord");
 
   useEffect(() => {
+    if (!isSuperAdmin && user?.primaryRole) {
+      const role = user.primaryRole;
+      if (role === "services" || role === "helper" || role === "landlord") {
+        setWorkspace(role);
+        return;
+      }
+    }
     if (pathname.startsWith("/services") || user?.primaryRole === "services") {
       setWorkspace("services");
     } else if (pathname.startsWith("/helper") || user?.primaryRole === "helper") {
@@ -91,7 +98,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         setWorkspace(saved as any);
       }
     }
-  }, [pathname, user?.primaryRole]);
+  }, [pathname, user?.primaryRole, isSuperAdmin]);
 
   const handleWorkspaceChange = (newWorkspace: "landlord" | "helper" | "services") => {
     setWorkspace(newWorkspace);
@@ -180,35 +187,43 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </button>
         </div>
 
-        {/* Workspace Switcher */}
+        {/* Workspace Switcher / Indicator */}
         {!isCollapsed && (
           <div className="px-3 pt-4 pb-1">
-            <div className="bg-gray-800 p-1 rounded-lg flex text-xs">
-              <button
-                onClick={() => { handleWorkspaceChange("landlord"); router.push("/"); }}
-                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
-                  workspace === "landlord" ? "bg-blue-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Landlord
-              </button>
-              <button
-                onClick={() => { handleWorkspaceChange("helper"); router.push("/helper"); }}
-                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
-                  workspace === "helper" ? "bg-purple-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Helper
-              </button>
-              <button
-                onClick={() => { handleWorkspaceChange("services"); router.push("/services"); }}
-                className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
-                  workspace === "services" ? "bg-emerald-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Services
-              </button>
-            </div>
+            {isSuperAdmin ? (
+              <div className="bg-gray-800 p-1 rounded-lg flex text-xs">
+                <button
+                  onClick={() => { handleWorkspaceChange("landlord"); router.push("/"); }}
+                  className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                    workspace === "landlord" ? "bg-blue-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Landlord
+                </button>
+                <button
+                  onClick={() => { handleWorkspaceChange("helper"); router.push("/helper"); }}
+                  className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                    workspace === "helper" ? "bg-purple-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Helper
+                </button>
+                <button
+                  onClick={() => { handleWorkspaceChange("services"); router.push("/services"); }}
+                  className={`flex-1 py-1.5 px-1 rounded-md font-medium transition-colors truncate ${
+                    workspace === "services" ? "bg-emerald-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Services
+                </button>
+              </div>
+            ) : (
+              <div className="bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex items-center justify-center text-xs font-semibold text-gray-200">
+                {workspace === "services" && <span className="text-emerald-400 flex items-center gap-1.5">⚡ Services Portal</span>}
+                {workspace === "helper" && <span className="text-purple-400 flex items-center gap-1.5">🛠️ Helper Portal</span>}
+                {workspace === "landlord" && <span className="text-blue-400 flex items-center gap-1.5">🏠 Landlord Portal</span>}
+              </div>
+            )}
           </div>
         )}
 

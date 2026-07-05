@@ -21,12 +21,20 @@ export default function Dashboard() {
   const [stats, setStats] = useState<RentalStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated or if primaryRole belongs to another dashboard
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/login");
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (!isSuperAdmin) {
+        if (user?.primaryRole === "services") {
+          router.push("/services");
+        } else if (user?.primaryRole === "helper") {
+          router.push("/helper");
+        }
+      }
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, isSuperAdmin, user?.primaryRole, router]);
 
   useEffect(() => {
     const fetchStats = async () => {

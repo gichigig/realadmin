@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { servicesApi, helperJobsApi, locationsApi, SERVICE_CATEGORIES } from "@/lib/api";
 import {
@@ -13,7 +14,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function ServicesDashboard() {
-  const { user, token } = useAuth();
+  const router = useRouter();
+  const { user, token, isAuthenticated, isLoading: authLoading, isSuperAdmin } = useAuth();
   const [data, setData] = useState<any>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,17 @@ export default function ServicesDashboard() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Redirect if not authenticated or if primaryRole belongs to another dashboard
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (!isSuperAdmin && user?.primaryRole && user.primaryRole !== "services") {
+        router.push(user.primaryRole === "helper" ? "/helper" : "/");
+      }
+    }
+  }, [authLoading, isAuthenticated, isSuperAdmin, user?.primaryRole, router]);
 
   useEffect(() => {
     if (token) fetchDashboard();
@@ -112,11 +125,11 @@ export default function ServicesDashboard() {
   }
 
   const userRole = user?.role?.toUpperCase();
-  if (userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
+  if (!isSuperAdmin && user?.primaryRole !== "services" && userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
     return (
       <div className="p-8 text-center text-red-600 flex flex-col items-center">
         <p className="text-lg font-bold mb-2">You do not have access to the Services Dashboard.</p>
-        <p className="text-sm text-gray-500">Your current role is: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{user?.role || 'undefined'}</span></p>
+        <p className="text-sm text-gray-500">Your current role is: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{user?.primaryRole || user?.role || 'undefined'}</span></p>
       </div>
     );
   }
