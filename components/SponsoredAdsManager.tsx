@@ -14,6 +14,7 @@ import {
   XCircleIcon,
   GlobeAltIcon,
   MegaphoneIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 const PLACEMENTS: Advertisement["placement"][] = [
@@ -42,6 +43,8 @@ export default function SponsoredAdsManager() {
   const [page, setPage] = useState(0);
   const [size] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const [search, setSearch] = useState("");
   const [filterSponsored, setFilterSponsored] = useState<"" | "true" | "false">("");
@@ -128,6 +131,61 @@ export default function SponsoredAdsManager() {
     }
   };
 
+  const handleToggleActive = async (ad: Advertisement) => {
+    setSavingId(ad.id);
+    setError("");
+    try {
+      await sponsoredAdsApi.update(ad.id, { active: !ad.active });
+      setAds((prev) =>
+        prev.map((item) => (item.id === ad.id ? { ...item, active: !ad.active } : item))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update ad status");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleKillAll = async () => {
+    const activeAds = ads.filter((ad) => ad.active);
+    if (activeAds.length === 0) return;
+    if (!confirm(`Are you sure you want to suspend ALL ${activeAds.length} active ads on this page?`)) return;
+    setBulkProcessing(true);
+    setError("");
+    try {
+      await Promise.all(
+        activeAds.map((ad) => sponsoredAdsApi.update(ad.id, { active: false }))
+      );
+      setAds((prev) => prev.map((ad) => ({ ...ad, active: false })));
+      setSuccess(`Successfully suspended ${activeAds.length} active ads.`);
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to suspend all ads");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleResumeAll = async () => {
+    const suspendedAds = ads.filter((ad) => !ad.active);
+    if (suspendedAds.length === 0) return;
+    if (!confirm(`Are you sure you want to resume (activate) ALL ${suspendedAds.length} suspended ads on this page?`)) return;
+    setBulkProcessing(true);
+    setError("");
+    try {
+      await Promise.all(
+        suspendedAds.map((ad) => sponsoredAdsApi.update(ad.id, { active: true }))
+      );
+      setAds((prev) => prev.map((ad) => ({ ...ad, active: true })));
+      setSuccess(`Successfully activated ${suspendedAds.length} ads.`);
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resume all ads");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {error && (
@@ -140,6 +198,35 @@ export default function SponsoredAdsManager() {
           {success}
         </div>
       )}
+
+      {/* Bulk Suspension Kill Switch Panel */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <ExclamationTriangleIcon className="h-6 w-6 text-red-600 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-red-900">Bulk Ad Suspension (Kill-Switch)</h3>
+            <p className="text-xs text-red-700">
+              Suspend all active ads on this page instantly, or resume them. You can also toggle individual ads below one by one.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <button
+            onClick={handleKillAll}
+            disabled={bulkProcessing || ads.every((ad) => !ad.active)}
+            className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
+          >
+            {bulkProcessing ? "Processing..." : "Kill All Active"}
+          </button>
+          <button
+            onClick={handleResumeAll}
+            disabled={bulkProcessing || ads.every((ad) => ad.active)}
+            className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm"
+          >
+            {bulkProcessing ? "Processing..." : "Resume All Suspended"}
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -214,6 +301,7 @@ export default function SponsoredAdsManager() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Placement</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Region</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sponsored</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status / Toggle</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
               </tr>
             </thead>
@@ -250,6 +338,21 @@ export default function SponsoredAdsManager() {
                         <XCircleIcon className="h-4 w-4" /> Off
                       </span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleActive(ad)}
+                      disabled={savingId === ad.id}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors shadow-sm ${
+                        ad.active
+                          ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
+                          : "bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
+                      }`}
+                      title="Click to switch ad on/off instantly"
+                    >
+                      <span className={`w-2 h-2 rounded-full ${ad.active ? "bg-green-500" : "bg-red-500"}`} />
+                      {savingId === ad.id ? "Saving..." : ad.active ? "Active" : "Suspended"}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

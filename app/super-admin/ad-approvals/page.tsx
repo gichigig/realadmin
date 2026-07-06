@@ -35,6 +35,7 @@ export default function AdApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const fetchAds = useCallback(async () => {
     setLoading(true);
@@ -136,6 +137,45 @@ export default function AdApprovalsPage() {
     }
   };
 
+  const handleBulkBlockApproved = async () => {
+    const unblockedAds = approvedAds.filter((ad) => !ad.blocked);
+    if (unblockedAds.length === 0) return;
+    const reason = prompt(`Enter suspension reason to block ALL ${unblockedAds.length} active approved ads:`, "Suspended by Super Admin via kill-switch");
+    if (!reason || !reason.trim()) return;
+
+    setBulkProcessing(true);
+    setError("");
+    try {
+      await Promise.all(
+        unblockedAds.map((ad) => adsApi.block(ad.id, reason.trim()))
+      );
+      await fetchAds();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to block all approved ads"));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkUnblockApproved = async () => {
+    const blockedAds = approvedAds.filter((ad) => ad.blocked);
+    if (blockedAds.length === 0) return;
+    if (!confirm(`Are you sure you want to unblock (resume) ALL ${blockedAds.length} suspended ads?`)) return;
+
+    setBulkProcessing(true);
+    setError("");
+    try {
+      await Promise.all(
+        blockedAds.map((ad) => adsApi.unblock(ad.id))
+      );
+      await fetchAds();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to unblock all approved ads"));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -192,6 +232,36 @@ export default function AdApprovalsPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {activeTab === "APPROVED" && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <NoSymbolIcon className="h-6 w-6 text-red-600 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-red-900">Bulk Approved Ad Suspension (Kill-Switch)</h3>
+              <p className="text-xs text-red-700">
+                Immediately block / suspend all approved ads from showing, or unblock them. You can also switch off individual ads below one by one.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+            <button
+              onClick={handleBulkBlockApproved}
+              disabled={bulkProcessing || approvedAds.every((ad) => ad.blocked)}
+              className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              {bulkProcessing ? "Processing..." : "Kill All (Suspend All)"}
+            </button>
+            <button
+              onClick={handleBulkUnblockApproved}
+              disabled={bulkProcessing || approvedAds.every((ad) => !ad.blocked)}
+              className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              {bulkProcessing ? "Processing..." : "Resume All Suspended"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -333,7 +403,7 @@ export default function AdApprovalsPage() {
                             ad.blocked ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-600 hover:bg-orange-700"
                           }`}
                         >
-                          {ad.blocked ? "Unblock" : "Block"}
+                          {ad.blocked ? "Unblock (Resume)" : "Block (Suspend)"}
                         </button>
                         <button
                           onClick={() => handleRejectApproved(ad.id)}

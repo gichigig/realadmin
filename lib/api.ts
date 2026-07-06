@@ -2316,7 +2316,7 @@ export const helperApi = {
     return response.json();
   },
 
-  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[]; serviceCategory?: string }) => {
+  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[]; serviceCategory?: string; serviceAreaMode?: string; serviceRadiusKm?: number; locationLatitude?: number; locationLongitude?: number; offeredServices?: string[] }) => {
     const response = await fetch(`${API_BASE_URL}/helper/profile`, {
       method: "POST",
       headers: getAuthHeaders(),
