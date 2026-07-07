@@ -69,6 +69,7 @@ export default function EditBuildingPage() {
         ward: location.ward || "",
         constituency: location.constituency || "",
         county: location.county,
+        ...(location.lat && location.lng ? { latitude: location.lat, longitude: location.lng } : {}),
       });
     } else {
       setFormData({

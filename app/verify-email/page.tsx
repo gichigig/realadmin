@@ -12,6 +12,7 @@ function EmailVerificationForm() {
   const searchParams = useSearchParams();
   const { isAuthenticated, updateUser } = useAuth();
   const emailParam = searchParams.get("email") || "";
+  const redirect = searchParams.get("redirect");
   
   const [email, setEmail] = useState(emailParam);
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -124,6 +125,10 @@ function EmailVerificationForm() {
         }
         // Redirect after 2 seconds
         setTimeout(() => {
+          if (redirect) {
+            router.push(redirect);
+            return;
+          }
           if (isAuthenticated) {
             const workspace = localStorage.getItem("workspaceMode");
             router.push(workspace === "services" ? "/services" : (workspace === "helper" ? "/helper" : "/"));
@@ -285,7 +290,7 @@ function EmailVerificationForm() {
         )}
 
         <div className="text-center">
-          <Link href="/login" prefetch className="text-sm text-blue-600 hover:text-blue-500">
+          <Link href={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"} prefetch className="text-sm text-blue-600 hover:text-blue-500">
             Back to login
           </Link>
         </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth-context";
 import { servicesApi, helperJobsApi, locationsApi, SERVICE_CATEGORIES } from "@/lib/api";
 import {
@@ -15,6 +16,8 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+
+const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 
 export default function ServicesDashboard() {
   const router = useRouter();
@@ -300,6 +303,20 @@ export default function ServicesDashboard() {
                         {isLocating ? "Locating..." : "Pin My Location"}
                       </button>
                     </div>
+
+                    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                      <MapPicker
+                        latitude={locationLatitude || -1.2921}
+                        longitude={locationLongitude || 36.8219}
+                        onChange={(lat, lng) => {
+                          setLocationLatitude(lat);
+                          setLocationLongitude(lng);
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 italic">
+                      Click anywhere on the map to manually pin your exact location, or use "Pin My Location" above for GPS auto-detection.
+                    </p>
                     
                     <div className="pt-2 border-t border-gray-200">
                       <div className="flex justify-between text-sm font-medium text-gray-700 mb-1">

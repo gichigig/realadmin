@@ -470,6 +470,8 @@ export interface LocationSearchResult {
   ward?: string;
   displayName: string;
   subtitle: string;
+  lat?: number;
+  lng?: number;
 }
 
 function getCountyForConstituency(constituency: string): string | undefined {
@@ -501,13 +503,19 @@ export function getAllLocationNames(): string[] {
 
 export function searchLocations(query: string): LocationSearchResult[] {
   if (!query) {
-    return popularAreas.map(area => ({
-      name: area,
-      type: 'area' as LocationType,
-      county: getCountyForLocation(area),
-      displayName: area,
-      subtitle: 'Popular Area',
-    }));
+    return popularAreas.map(area => {
+      const county = getCountyForLocation(area);
+      const coords = getCoordinatesForLocation(area, county);
+      return {
+        name: area,
+        type: 'area' as LocationType,
+        county,
+        displayName: area,
+        subtitle: 'Popular Area',
+        lat: coords?.lat,
+        lng: coords?.lng,
+      };
+    });
   }
 
   const results: LocationSearchResult[] = [];
@@ -516,12 +524,15 @@ export function searchLocations(query: string): LocationSearchResult[] {
   // Search counties
   for (const county of counties) {
     if (county.toLowerCase().includes(queryLower)) {
+      const coords = getCoordinatesForLocation(county);
       results.push({
         name: county,
         type: 'county',
         county,
         displayName: `${county} County`,
         subtitle: 'County',
+        lat: coords?.lat,
+        lng: coords?.lng,
       });
     }
   }
@@ -530,6 +541,7 @@ export function searchLocations(query: string): LocationSearchResult[] {
   for (const [county, constituencies] of Object.entries(constituenciesByCounty)) {
     for (const constituency of constituencies) {
       if (constituency.toLowerCase().includes(queryLower)) {
+        const coords = getCoordinatesForLocation(constituency, county);
         results.push({
           name: constituency,
           type: 'constituency',
@@ -537,6 +549,8 @@ export function searchLocations(query: string): LocationSearchResult[] {
           constituency,
           displayName: `${constituency}, ${county}`,
           subtitle: `Constituency in ${county} County`,
+          lat: coords?.lat,
+          lng: coords?.lng,
         });
       }
     }
@@ -547,6 +561,7 @@ export function searchLocations(query: string): LocationSearchResult[] {
     for (const ward of wards) {
       if (ward.toLowerCase().includes(queryLower)) {
         const county = getCountyForConstituency(constituency);
+        const coords = getCoordinatesForLocation(ward, county) || getCoordinatesForLocation(constituency, county);
         results.push({
           name: ward,
           type: 'ward',
@@ -555,6 +570,8 @@ export function searchLocations(query: string): LocationSearchResult[] {
           ward,
           displayName: `${ward} Ward, ${constituency}`,
           subtitle: `Ward in ${constituency}, ${county}`,
+          lat: coords?.lat,
+          lng: coords?.lng,
         });
       }
     }
@@ -584,4 +601,180 @@ export function getConstituencies(county: string): string[] {
 
 export function getWards(constituency: string): string[] {
   return wardsByConstituency[constituency] || [];
+}
+
+const locationCoordinates: Record<string, [number, number]> = {
+  // 47 Counties & Regional Centers
+  'Nairobi': [-1.2921, 36.8219],
+  'Mombasa': [-4.0435, 39.6682],
+  'Kisumu': [-0.0917, 34.7680],
+  'Nakuru': [-0.3031, 36.0800],
+  'Uasin Gishu': [0.5143, 35.2698],
+  'Eldoret': [0.5143, 35.2698],
+  'Kiambu': [-1.1714, 36.8356],
+  'Machakos': [-1.3700, 36.9300],
+  'Kajiado': [-1.8500, 36.7833],
+  'Nyeri': [-0.4201, 36.9476],
+  'Meru': [0.0463, 37.6559],
+  'Kilifi': [-3.6305, 39.8499],
+  'Kwale': [-4.1833, 39.4500],
+  'Kakamega': [0.2827, 34.7519],
+  'Kisii': [-0.6773, 34.7796],
+  'Bungoma': [0.5635, 34.5606],
+  'Kericho': [-0.3677, 35.2831],
+  'Nandi': [0.1833, 35.1833],
+  'Trans Nzoia': [1.0167, 35.0000],
+  'Nyandarua': [-0.1833, 36.3667],
+  "Murang'a": [-0.7167, 37.1500],
+  'Kirinyaga': [-0.5000, 37.2833],
+  'Embu': [-0.5397, 37.4576],
+  'Tharaka-Nithi': [-0.3000, 37.8667],
+  'Kitui': [-1.3667, 38.0167],
+  'Makueni': [-1.8000, 37.6167],
+  'Laikipia': [0.3500, 36.8667],
+  'Bomet': [-0.7833, 35.3500],
+  'Baringo': [0.4667, 35.9667],
+  'Narok': [-1.0833, 35.8667],
+  'Siaya': [0.0607, 34.2881],
+  'Homa Bay': [-0.5273, 34.4569],
+  'Migori': [-1.0634, 34.4731],
+  'Nyamira': [-0.5633, 34.9358],
+  'Garissa': [-0.4532, 39.6460],
+  'Wajir': [1.7471, 40.0573],
+  'Mandera': [3.9366, 41.8670],
+  'Marsabit': [2.3350, 37.9899],
+  'Isiolo': [0.3546, 37.5822],
+  'Taita Taveta': [-3.3167, 38.3833],
+  'Tana River': [-1.5000, 40.0000],
+  'Lamu': [-2.2686, 40.9003],
+  'Turkana': [3.1167, 35.6000],
+  'West Pokot': [1.2333, 35.1167],
+  'Samburu': [1.1667, 36.6667],
+  'Elgeyo/Marakwet': [0.8000, 35.5000],
+  'Vihiga': [0.0833, 34.7167],
+  'Busia': [0.4608, 34.1115],
+
+  // Nairobi Wards, Areas & Constituencies
+  'Kilimani': [-1.2884, 36.7833],
+  'Kileleshwa': [-1.2743, 36.7820],
+  'Westlands': [-1.2636, 36.8030],
+  'Parklands/Highridge': [-1.2636, 36.8030],
+  'Kitisuru': [-1.2333, 36.7667],
+  'Karura': [-1.2389, 36.8290],
+  'Kangemi': [-1.2610, 36.7450],
+  'Mountain View': [-1.2580, 36.7350],
+  'Kawangware': [-1.2825, 36.7371],
+  'Gatina': [-1.2850, 36.7550],
+  'Kabiro': [-1.2910, 36.7480],
+  'Karen': [-1.3317, 36.7050],
+  'Nairobi West': [-1.3130, 36.8150],
+  'South C': [-1.3167, 36.8333],
+  'South B': [-1.3097, 36.8494],
+  'Nyayo Highrise': [-1.3100, 36.8050],
+  'Laini Saba': [-1.3130, 36.7880],
+  'Woodley/Kenyatta Golf': [-1.3000, 36.7850],
+  'Githurai': [-1.2050, 36.9200],
+  'Kahawa West': [-1.1900, 36.8850],
+  'Zimmerman': [-1.2183, 36.8883],
+  'Roysambu': [-1.2183, 36.8883],
+  'Kahawa': [-1.1850, 36.9300],
+  'Claycity': [-1.2150, 36.9000],
+  'Mwiki': [-1.2225, 36.9050],
+  'Kasarani': [-1.2225, 36.9050],
+  'Ruai': [-1.2480, 36.9900],
+  'Njiru': [-1.2400, 36.9400],
+  'Utalii': [-1.2550, 36.8600],
+  'Mathare North': [-1.2500, 36.8600],
+  'Lucky Summer': [-1.2450, 36.8800],
+  'Imara Daima': [-1.3250, 36.8750],
+  'Kwa Njenga': [-1.3200, 36.8850],
+  'Kwa Reuben': [-1.3180, 36.8800],
+  'Pipeline': [-1.3150, 36.8900],
+  'Kariobangi North': [-1.2520, 36.8850],
+  'Dandora Area I': [-1.2480, 36.8950],
+  'Kayole North': [-1.2750, 36.9050],
+  'Kayole Central': [-1.2800, 36.9100],
+  'Komarock': [-1.2680, 36.9100],
+  'Upper Savannah': [-1.3000, 36.8850],
+  'Lower Savannah': [-1.3100, 36.8950],
+  'Embakasi': [-1.3200, 36.9000],
+  'Utawala': [-1.2850, 36.9650],
+  'Mihango': [-1.2780, 36.9450],
+  'Umoja I': [-1.2850, 36.8850],
+  'Umoja Ii': [-1.2900, 36.8900],
+  'Kariobangi South': [-1.2650, 36.8800],
+  'Makongeni': [-1.2980, 36.8450],
+  'Maringo/Hamza': [-1.2920, 36.8600],
+  'Harambee': [-1.2950, 36.8700],
+  'Pumwani': [-1.2830, 36.8400],
+  'Eastleigh North': [-1.2700, 36.8480],
+  'Eastleigh South': [-1.2780, 36.8480],
+  'Nairobi Central': [-1.2864, 36.8172],
+  'Ngara': [-1.2780, 36.8250],
+  'Pangani': [-1.2700, 36.8350],
+  'Upper Hill': [-1.2980, 36.8150],
+  'CBD': [-1.2864, 36.8172],
+  'Hurlingham': [-1.2920, 36.7950],
+  'Lavington': [-1.2780, 36.7650],
+  'Milimani': [-1.2900, 36.8080],
+  'Riverside': [-1.2700, 36.7900],
+  'Spring Valley': [-1.2500, 36.7950],
+  'Muthaiga': [-1.2500, 36.8300],
+  'Runda': [-1.2167, 36.8167],
+  'Gigiri': [-1.2333, 36.8167],
+  'Nyari': [-1.2250, 36.7850],
+  'Rosslyn': [-1.2100, 36.7900],
+  'Lake View': [-1.2450, 36.7750],
+
+  // Kiambu & Metro Wards/Areas
+  'Ruaka': [-1.2094, 36.7778],
+  'Ndenderu': [-1.2094, 36.7778],
+  'Thika Town': [-1.0333, 37.0833],
+  'Thika': [-1.0333, 37.0833],
+  'Ruiru': [-1.1553, 36.9479],
+  'Biashara Ward': [-1.1553, 36.9479],
+  'Membley': [-1.1553, 36.9479],
+  'Juja': [-1.1095, 37.0145],
+  'Kikuyu': [-1.2483, 36.6667],
+  'Kabete': [-1.2400, 36.7300],
+  'Limuru': [-1.1167, 36.6500],
+  'Gatundu South': [-1.0167, 36.9000],
+  'Gatundu North': [-0.9833, 36.9167],
+  'Githunguri': [-1.0500, 36.7833],
+
+  // Coastal & Regional Centers
+  'Nyali': [-4.0200, 39.7100],
+  'Bamburi': [-3.9833, 39.7167],
+  'Kisauni': [-4.0000, 39.7000],
+  'Likoni': [-4.0833, 39.6667],
+  'Diani': [-4.2783, 39.5886],
+  'Ukunda': [-4.2833, 39.5667],
+  'Malindi': [-3.2192, 40.1169],
+  'Kisumu CBD': [-0.0917, 34.7680],
+  'Kondele': [-0.0800, 34.7750],
+  'Nakuru East': [-0.3031, 36.0800],
+  'Nakuru West': [-0.2950, 36.0600],
+  'Rongai': [-1.3958, 36.7500],
+  'Ongata Rongai': [-1.3958, 36.7500],
+  'Syokimau': [-1.3700, 36.9300],
+  'Mlolongo': [-1.3850, 36.9450],
+  'Kitengela': [-1.4833, 36.9500],
+  'Ngong': [-1.3614, 36.6566],
+};
+
+export function getCoordinatesForLocation(name?: string, fallbackCounty?: string): { lat: number; lng: number } | undefined {
+  if (!name) return undefined;
+  if (locationCoordinates[name]) {
+    return { lat: locationCoordinates[name][0], lng: locationCoordinates[name][1] };
+  }
+  if (fallbackCounty && locationCoordinates[fallbackCounty]) {
+    return { lat: locationCoordinates[fallbackCounty][0], lng: locationCoordinates[fallbackCounty][1] };
+  }
+  const nameLower = name.toLowerCase();
+  for (const [key, coords] of Object.entries(locationCoordinates)) {
+    if (key.toLowerCase() === nameLower || key.toLowerCase().includes(nameLower) || nameLower.includes(key.toLowerCase())) {
+      return { lat: coords[0], lng: coords[1] };
+    }
+  }
+  return undefined;
 }

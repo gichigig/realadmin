@@ -12,6 +12,7 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const targetRole = searchParams.get("role");
   const source = searchParams.get("source");
+  const redirect = searchParams.get("redirect");
   const { register, loginWithGoogleIdToken } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
@@ -68,11 +69,11 @@ function SignupForm() {
           router.push('/return-to-app');
           return;
         }
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
         return;
       }
       
-      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}`);
+      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -96,6 +97,10 @@ function SignupForm() {
           try { await servicesApi.updateProfile({ serviceCategory: selectedCategory }); } catch {}
         }
         localStorage.setItem("workspaceMode", roleToSet);
+        if (redirect) {
+          router.push(redirect);
+          return;
+        }
         if (source === 'dwelly') {
           router.push('/return-to-app');
           return;
@@ -103,7 +108,7 @@ function SignupForm() {
         router.push(roleToSet === "services" ? "/services" : (roleToSet === "helper" ? "/helper" : "/"));
         return;
       }
-      router.push("/choose-role");
+      router.push(`/choose-role${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-up failed");
     } finally {

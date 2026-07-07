@@ -10,6 +10,7 @@ function ChooseRoleForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email");
+  const redirect = searchParams.get("redirect");
   const { user, isAuthenticated, isLoading } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(SERVICE_CATEGORIES[0]);
@@ -18,9 +19,9 @@ function ChooseRoleForm() {
   // we should probably redirect to login. But we'll wait for user action just in case.
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !emailParam) {
-      router.push("/login");
+      router.push(redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login");
     }
-  }, [isLoading, isAuthenticated, emailParam, router]);
+  }, [isLoading, isAuthenticated, emailParam, router, redirect]);
 
   const handleSelectRole = async (role: "landlord" | "helper" | "services", category?: string) => {
     setIsProcessing(true);
@@ -45,15 +46,19 @@ function ChooseRoleForm() {
         }
 
         if (user?.emailVerified) {
-          router.push(role === "services" ? "/services" : (role === "helper" ? "/helper" : "/"));
+          if (redirect) {
+            router.push(redirect);
+          } else {
+            router.push(role === "services" ? "/services" : (role === "helper" ? "/helper" : "/"));
+          }
         } else {
-          router.push(`/verify-email?email=${encodeURIComponent(user?.email || emailParam || "")}`);
+          router.push(`/verify-email?email=${encodeURIComponent(user?.email || emailParam || "")}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
         }
       } else if (emailParam) {
         // Unauthenticated but just came from signup page (fallback)
-        router.push(`/verify-email?email=${encodeURIComponent(emailParam)}`);
+        router.push(`/verify-email?email=${encodeURIComponent(emailParam)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
       } else {
-        router.push("/login");
+        router.push(redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login");
       }
     } catch (error) {
       console.error("Failed to save role:", error);

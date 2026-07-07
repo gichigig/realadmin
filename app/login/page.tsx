@@ -60,6 +60,8 @@ function LoginForm() {
   const [mfaCode, setMfaCode] = useState("");
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
   const requiresMfa = !!mfaChallenge;
+  const redirectParam = searchParams.get("redirect");
+  const signupHref = redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : "/signup";
 
   const handleSuccessfulAuth = () => {
     const redirect = searchParams.get("redirect");
@@ -319,7 +321,7 @@ function LoginForm() {
           {!requiresMfa && (
             <p className="mt-2 text-sm text-gray-600">
               Or{" "}
-              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href={signupHref} className="font-medium text-blue-600 hover:text-blue-500">
                 create a new account
               </Link>
             </p>
