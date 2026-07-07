@@ -4,7 +4,6 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import AppShell from "@/components/AppShell";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,12 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <Script 
-          async 
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000" 
-          crossOrigin="anonymous" 
-          strategy="afterInteractive" 
-        />
+        <script
+          async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7814990820270971"
+          crossOrigin="anonymous"></script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
