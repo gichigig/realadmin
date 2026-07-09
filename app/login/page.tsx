@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth, MfaChallenge } from "@/lib/auth-context";
 import { GoogleLogin } from "@react-oauth/google";
 
-type MfaMethod = "PASSKEY" | "TOTP" | "RECOVERY";
+type MfaMethod = "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH";
 
 const decodeBase64Url = (value: string): ArrayBuffer => {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
@@ -39,6 +39,8 @@ function LoginForm() {
     login,
     verifyTotpLogin,
     verifyRecoveryLogin,
+    sendPushChallenge,
+    pollPushChallengeStatus,
     fetchPasskeyOptions,
     verifyPasskeyLogin,
     loginWithGoogleIdToken,
@@ -58,6 +60,51 @@ function LoginForm() {
   const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
   const [mfaMethod, setMfaMethod] = useState<MfaMethod>("TOTP");
   const [mfaCode, setMfaCode] = useState("");
+  const [pushStatus, setPushStatus] = useState<"IDLE" | "WAITING" | "APPROVED" | "DENIED" | "EXPIRED">("IDLE");
+
+  const triggerPushChallenge = async () => {
+    if (!mfaChallenge) return;
+    try {
+      setPushStatus("WAITING");
+      await sendPushChallenge(mfaChallenge.challengeId, mfaChallenge.challengeToken);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send push prompt");
+    }
+  };
+
+  useEffect(() => {
+    if (mfaMethod === "PUSH" && mfaChallenge && pushStatus === "IDLE") {
+      triggerPushChallenge();
+    }
+  }, [mfaMethod, mfaChallenge]);
+
+  useEffect(() => {
+    if (mfaMethod !== "PUSH" || !mfaChallenge || pushStatus !== "WAITING") {
+      return;
+    }
+    const interval = setInterval(async () => {
+      try {
+        const res = await pollPushChallengeStatus(mfaChallenge.challengeId);
+        if (res.status === "APPROVED") {
+          setPushStatus("APPROVED");
+          clearInterval(interval);
+          handleSuccessfulAuth();
+        } else if (res.status === "DENIED") {
+          setPushStatus("DENIED");
+          clearInterval(interval);
+          setError("Sign-in request was denied on your phone.");
+        } else if (res.status === "EXPIRED") {
+          setPushStatus("EXPIRED");
+          clearInterval(interval);
+        }
+      } catch (err) {
+        // Ignore temporary network errors during poll
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [mfaMethod, mfaChallenge, pushStatus]);
+
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
   const requiresMfa = !!mfaChallenge;
   const redirectParam = searchParams.get("redirect");
@@ -402,13 +449,72 @@ function LoginForm() {
                   >
                     {mfaChallenge?.availableMethods.map((method) => (
                       <option key={method} value={method}>
-                        {method === "PASSKEY" ? "Passkey" : method === "RECOVERY" ? "Recovery Code" : "Authenticator Code"}
+                        {method === "PASSKEY"
+                          ? "Passkey"
+                          : method === "RECOVERY"
+                          ? "Recovery Code"
+                          : method === "PUSH"
+                          ? "Tap to Verify (Mobile Push)"
+                          : "Authenticator Code (6 digits)"}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {mfaMethod !== "PASSKEY" && (
+                {mfaMethod === "PUSH" && (
+                  <div className="p-5 border-2 border-blue-200 rounded-xl bg-blue-50/70 text-center space-y-4 my-2">
+                    <div className="flex justify-center">
+                      <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 text-white shadow-lg animate-pulse">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900">Approve sign-in on your phone</h4>
+                      <p className="mt-1 text-sm text-gray-600">
+                        We sent a verification prompt to your{" "}
+                        <span className="font-semibold text-blue-700">
+                          {mfaChallenge?.pushDeviceNames && mfaChallenge.pushDeviceNames.length > 0
+                            ? mfaChallenge.pushDeviceNames.join(", ")
+                            : "Registered Mobile Device"}
+                        </span>
+                        . Open the Dwelly app and tap <span className="font-bold">Approve</span>.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center space-x-2 text-xs font-medium text-blue-700 bg-blue-100/80 py-2 px-3 rounded-lg">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></span>
+                      <span>
+                        {pushStatus === "APPROVED"
+                          ? "Approved! Signing you in..."
+                          : pushStatus === "DENIED"
+                          ? "Verification request denied on device."
+                          : pushStatus === "EXPIRED"
+                          ? "Prompt expired. Click Resend below."
+                          : "Waiting for approval on your device..."}
+                      </span>
+                    </div>
+                    <div className="flex justify-center space-x-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => triggerPushChallenge()}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Resend Prompt
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setMfaMethod("TOTP")}
+                        className="text-xs font-medium text-gray-600 hover:text-gray-900 underline"
+                      >
+                        Use 6-Digit Authenticator Code Instead
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {mfaMethod !== "PASSKEY" && mfaMethod !== "PUSH" && (
                   <div>
                     <label htmlFor="mfa-code" className="block text-sm font-medium text-gray-700">
                       {mfaMethod === "RECOVERY" ? "Recovery code" : "Authenticator code"}

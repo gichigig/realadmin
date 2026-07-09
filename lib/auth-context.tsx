@@ -89,8 +89,9 @@ export interface AuthResponse {
 export interface MfaChallenge {
   challengeId: string;
   challengeToken: string;
-  availableMethods: Array<"PASSKEY" | "TOTP" | "RECOVERY">;
-  preferredMethod?: "PASSKEY" | "TOTP" | "RECOVERY";
+  availableMethods: Array<"PASSKEY" | "TOTP" | "RECOVERY" | "PUSH">;
+  preferredMethod?: "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH";
+  pushDeviceNames?: string[];
   expiresAt?: string;
 }
 
@@ -106,6 +107,8 @@ interface AuthContextType {
   login: (email: string, password: string, forceLogin?: boolean) => Promise<LoginResult>;
   verifyTotpLogin: (challengeId: string, challengeToken: string, code: string) => Promise<void>;
   verifyRecoveryLogin: (challengeId: string, challengeToken: string, recoveryCode: string) => Promise<void>;
+  sendPushChallenge: (challengeId: string, challengeToken: string) => Promise<void>;
+  pollPushChallengeStatus: (challengeId: string) => Promise<{ status: string; authResponse?: AuthResponse }>;
   fetchPasskeyOptions: (challengeId: string, challengeToken: string) => Promise<any>;
   verifyPasskeyLogin: (challengeId: string, challengeToken: string, credential: any) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -306,6 +309,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuthResponse(data);
   };
 
+  const sendPushChallenge = async (challengeId: string, challengeToken: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login/push/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId, challengeToken }),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to send verification prompt to your phone");
+    }
+  };
+
+  const pollPushChallengeStatus = async (challengeId: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login/push/status?challengeId=${encodeURIComponent(challengeId)}`);
+    if (!response.ok) {
+      throw new Error("Failed to check push status");
+    }
+    const data = await response.json();
+    if (data.status === "APPROVED" && data.authResponse) {
+      applyAuthResponse(data.authResponse);
+    }
+    return data;
+  };
+
   const fetchPasskeyOptions = async (challengeId: string, challengeToken: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login/passkey/options`, {
       method: "POST",
@@ -451,6 +477,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         verifyTotpLogin,
         verifyRecoveryLogin,
+        sendPushChallenge,
+        pollPushChallengeStatus,
         fetchPasskeyOptions,
         verifyPasskeyLogin,
         register,
