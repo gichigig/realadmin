@@ -112,7 +112,7 @@ interface AuthContextType {
   fetchPasskeyOptions: (challengeId: string, challengeToken: string) => Promise<any>;
   verifyPasskeyLogin: (challengeId: string, challengeToken: string, credential: any) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  loginWithGoogleIdToken: (idToken: string, clientType?: string, forceLogin?: boolean) => Promise<void>;
+  loginWithGoogleIdToken: (idToken: string, clientType?: string, forceLogin?: boolean) => Promise<{ status: "AUTHENTICATED" | "MFA_REQUIRED"; challenge?: MfaChallenge }>;
   exchangeBluvberryCode: (code: string, redirectUri: string, clientType?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
@@ -347,7 +347,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.json();
   };
 
-  const loginWithGoogleIdToken = async (idToken: string, clientType = "REALADMIN", forceLogin = false) => {
+  const loginWithGoogleIdToken = async (
+    idToken: string,
+    clientType = "REALADMIN",
+    forceLogin = false
+  ): Promise<{ status: "AUTHENTICATED" | "MFA_REQUIRED"; challenge?: MfaChallenge }> => {
     const response = await fetch(`${API_BASE_URL}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -362,8 +366,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(error.message || "Google sign-in failed");
     }
 
-    const data: AuthResponse = await response.json();
-    applyAuthResponse(data);
+    const data = await response.json();
+
+    if (data.status === "MFA_REQUIRED") {
+      return {
+        status: "MFA_REQUIRED",
+        challenge: {
+          challengeId: data.challengeId,
+          challengeToken: data.challengeToken,
+          availableMethods: (data.availableMethods ?? []) as Array<"PASSKEY" | "TOTP" | "RECOVERY" | "PUSH">,
+          preferredMethod: data.preferredMethod as "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH" | undefined,
+          pushDeviceNames: data.pushDeviceNames,
+          expiresAt: data.expiresAt,
+        },
+      };
+    }
+
+    const authPayload: AuthResponse = data.auth ? data.auth : data;
+    applyAuthResponse(authPayload);
+    return { status: "AUTHENTICATED" };
   };
 
   const exchangeBluvberryCode = async (

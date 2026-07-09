@@ -170,8 +170,14 @@ function LoginForm() {
     setGoogleLoading(true);
     setError("");
     try {
-      await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
-      handleSuccessfulAuth();
+      const result = await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
+      if (result.status === "MFA_REQUIRED" && result.challenge) {
+        setMfaChallenge(result.challenge);
+        const preferred = result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP";
+        setMfaMethod(preferred);
+      } else {
+        handleSuccessfulAuth();
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Google sign-in failed";
       if (errorMessage === "CONCURRENT_LOGIN_DETECTED") {
@@ -326,8 +332,14 @@ function LoginForm() {
     if (pendingGoogleToken) {
       setGoogleLoading(true);
       try {
-        await loginWithGoogleIdToken(pendingGoogleToken, "REALADMIN", true);
-        handleSuccessfulAuth();
+        const result = await loginWithGoogleIdToken(pendingGoogleToken, "REALADMIN", true);
+        if (result.status === "MFA_REQUIRED" && result.challenge) {
+          setMfaChallenge(result.challenge);
+          const preferred = result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP";
+          setMfaMethod(preferred);
+        } else {
+          handleSuccessfulAuth();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Google sign-in failed");
       } finally {
