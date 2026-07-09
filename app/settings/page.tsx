@@ -19,7 +19,8 @@ interface SecurityMethods {
   mfaEnabled: boolean;
   totpEnabled: boolean;
   passkeyEnabled: boolean;
-  preferredMethod: "PASSKEY" | "TOTP" | "RECOVERY" | null;
+  pushEnabled?: boolean;
+  preferredMethod: "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH" | null;
   recoveryCodesRemaining: number;
   passkeys: Array<{ id: number; name: string; lastUsedAt?: string }>;
 }
@@ -227,7 +228,7 @@ export default function SettingsPage() {
     }
   };
 
-  const updatePreferredMethod = async (method: "PASSKEY" | "TOTP" | "RECOVERY") => {
+  const updatePreferredMethod = async (method: "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH") => {
     if (!authHeaders) return;
     setSecurityLoading(true);
     setSecurityError("");
@@ -243,6 +244,26 @@ export default function SettingsPage() {
       await loadSecurityMethods();
     } catch (err) {
       setSecurityError(err instanceof Error ? err.message : "Failed to update preferred method");
+      setSecurityLoading(false);
+    }
+  };
+
+  const togglePush = async () => {
+    if (!authHeaders || !securityMethods) return;
+    setSecurityLoading(true);
+    setSecurityError("");
+    try {
+      const response = await fetch(`${apiBase}/auth/security/push/toggle`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ enabled: !securityMethods.pushEnabled }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update Tap to Verify setting");
+      }
+      await loadSecurityMethods();
+    } catch (err) {
+      setSecurityError(err instanceof Error ? err.message : "Failed to toggle Tap to Verify");
       setSecurityLoading(false);
     }
   };
@@ -830,10 +851,11 @@ export default function SettingsPage() {
                 </label>
                 <select
                   value={securityMethods.preferredMethod || "TOTP"}
-                  onChange={(e) => updatePreferredMethod(e.target.value as "PASSKEY" | "TOTP" | "RECOVERY")}
+                  onChange={(e) => updatePreferredMethod(e.target.value as "PASSKEY" | "TOTP" | "RECOVERY" | "PUSH")}
                   className="w-full px-4 py-2 border rounded-lg bg-white text-gray-900"
                 >
                   {securityMethods.totpEnabled && <option value="TOTP">Authenticator</option>}
+                  {securityMethods.pushEnabled && <option value="PUSH">Tap to Verify (Mobile Push)</option>}
                   {securityMethods.passkeyEnabled && <option value="PASSKEY">Passkey</option>}
                   {securityMethods.recoveryCodesRemaining > 0 && (
                     <option value="RECOVERY">Recovery Code</option>
@@ -842,6 +864,12 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={togglePush}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  {securityMethods.pushEnabled ? "Disable Tap to Verify" : "Enable Tap to Verify"}
+                </button>
                 <button
                   onClick={securityMethods.totpEnabled ? disableTotp : setupTotp}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
