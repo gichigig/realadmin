@@ -4,13 +4,11 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { accountApi, SERVICE_CATEGORIES, servicesApi } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const targetRole = searchParams.get("role");
   const source = searchParams.get("source");
   const redirect = searchParams.get("redirect");
   const { register, loginWithGoogleIdToken } = useAuth();
@@ -25,8 +23,6 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string>(targetRole || "landlord");
-  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get("category") || SERVICE_CATEGORIES[0]);
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,22 +54,7 @@ function SignupForm() {
         phone: formData.phone || undefined,
       });
 
-      const roleToSet = targetRole || selectedRole;
-      if (roleToSet) {
-        await accountApi.setPrimaryRole(roleToSet);
-        if (roleToSet === "services" && selectedCategory) {
-          try { await servicesApi.updateProfile({ serviceCategory: selectedCategory }); } catch {}
-        }
-        localStorage.setItem("workspaceMode", roleToSet);
-        if (source === 'dwelly') {
-          router.push('/return-to-app');
-          return;
-        }
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
-        return;
-      }
-      
-      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
+      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -90,25 +71,7 @@ function SignupForm() {
     setError("");
     try {
       await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
-      const roleToSet = targetRole || selectedRole;
-      if (roleToSet) {
-        await accountApi.setPrimaryRole(roleToSet);
-        if (roleToSet === "services" && selectedCategory) {
-          try { await servicesApi.updateProfile({ serviceCategory: selectedCategory }); } catch {}
-        }
-        localStorage.setItem("workspaceMode", roleToSet);
-        if (redirect) {
-          router.push(redirect);
-          return;
-        }
-        if (source === 'dwelly') {
-          router.push('/return-to-app');
-          return;
-        }
-        router.push(roleToSet === "services" ? "/services" : (roleToSet === "helper" ? "/helper" : "/"));
-        return;
-      }
-      router.push(`/choose-role${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`);
+      router.push(`/choose-role?email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-up failed");
     } finally {
@@ -203,43 +166,6 @@ function SignupForm() {
               />
             </div>
 
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                Primary Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              >
-                <option value="landlord">Landlord</option>
-                <option value="helper">Helper (General maintenance & property jobs)</option>
-                <option value="services">Services (Mama Fua, Plumber, Delivery, etc.)</option>
-              </select>
-            </div>
-
-            {selectedRole === "services" && (
-              <div>
-                <label htmlFor="serviceCategory" className="block text-sm font-medium text-gray-700">
-                  Select Service Category
-                </label>
-                <select
-                  id="serviceCategory"
-                  name="serviceCategory"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                >
-                  {SERVICE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
 
             <div>

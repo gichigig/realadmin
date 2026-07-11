@@ -173,8 +173,11 @@ function LoginForm() {
       const result = await loginWithGoogleIdToken(credentialResponse.credential, "REALADMIN");
       if (result.status === "MFA_REQUIRED" && result.challenge) {
         setMfaChallenge(result.challenge);
-        const preferred = result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP";
-        setMfaMethod(preferred);
+        const nonPushMethods = result.challenge.availableMethods.filter((m) => m !== "PUSH");
+        const preferred = result.challenge.preferredMethod && result.challenge.preferredMethod !== "PUSH"
+          ? result.challenge.preferredMethod
+          : (nonPushMethods[0] || "TOTP");
+        setMfaMethod(preferred as MfaMethod);
       } else {
         handleSuccessfulAuth();
       }
@@ -229,7 +232,8 @@ function LoginForm() {
         throw new Error("MFA challenge missing");
       }
       setMfaChallenge(result.challenge);
-      setMfaMethod((result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP") as MfaMethod);
+      const nonPush = result.challenge.availableMethods.filter((m) => m !== "PUSH");
+      setMfaMethod(((result.challenge.preferredMethod !== "PUSH" ? result.challenge.preferredMethod : null) || nonPush[0] || "TOTP") as MfaMethod);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
       if (errorMessage === "CONCURRENT_LOGIN_DETECTED") {
@@ -335,8 +339,8 @@ function LoginForm() {
         const result = await loginWithGoogleIdToken(pendingGoogleToken, "REALADMIN", true);
         if (result.status === "MFA_REQUIRED" && result.challenge) {
           setMfaChallenge(result.challenge);
-          const preferred = result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP";
-          setMfaMethod(preferred);
+          const nonPush = result.challenge.availableMethods.filter((m) => m !== "PUSH");
+          setMfaMethod(((result.challenge.preferredMethod !== "PUSH" ? result.challenge.preferredMethod : null) || nonPush[0] || "TOTP") as MfaMethod);
         } else {
           handleSuccessfulAuth();
         }
@@ -358,7 +362,8 @@ function LoginForm() {
           throw new Error("MFA challenge missing");
         }
         setMfaChallenge(result.challenge);
-        setMfaMethod((result.challenge.preferredMethod || result.challenge.availableMethods[0] || "TOTP") as MfaMethod);
+        const nonPush = result.challenge.availableMethods.filter((m) => m !== "PUSH");
+        setMfaMethod(((result.challenge.preferredMethod !== "PUSH" ? result.challenge.preferredMethod : null) || nonPush[0] || "TOTP") as MfaMethod);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Login failed");
       } finally {
@@ -459,74 +464,21 @@ function LoginForm() {
                     onChange={(e) => setMfaMethod(e.target.value as MfaMethod)}
                     className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900"
                   >
-                    {mfaChallenge?.availableMethods.map((method) => (
-                      <option key={method} value={method}>
-                        {method === "PASSKEY"
-                          ? "Passkey"
-                          : method === "RECOVERY"
-                          ? "Recovery Code"
-                          : method === "PUSH"
-                          ? "Tap to Verify (Mobile Push)"
-                          : "Authenticator Code (6 digits)"}
-                      </option>
-                    ))}
+                    {mfaChallenge?.availableMethods
+                      .filter((method) => method !== "PUSH")
+                      .map((method) => (
+                        <option key={method} value={method}>
+                          {method === "PASSKEY"
+                            ? "Passkey"
+                            : method === "RECOVERY"
+                            ? "Recovery Code"
+                            : "Authenticator Code (6 digits)"}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
-                {mfaMethod === "PUSH" && (
-                  <div className="p-5 border-2 border-blue-200 rounded-xl bg-blue-50/70 text-center space-y-4 my-2">
-                    <div className="flex justify-center">
-                      <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 text-white shadow-lg animate-pulse">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-base font-semibold text-gray-900">Approve sign-in on your phone</h4>
-                      <p className="mt-1 text-sm text-gray-600">
-                        We sent a verification prompt to your{" "}
-                        <span className="font-semibold text-blue-700">
-                          {mfaChallenge?.pushDeviceNames && mfaChallenge.pushDeviceNames.length > 0
-                            ? mfaChallenge.pushDeviceNames.join(", ")
-                            : "Registered Mobile Device"}
-                        </span>
-                        . Open the Dwelly app and tap <span className="font-bold">Approve</span>.
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center space-x-2 text-xs font-medium text-blue-700 bg-blue-100/80 py-2 px-3 rounded-lg">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></span>
-                      <span>
-                        {pushStatus === "APPROVED"
-                          ? "Approved! Signing you in..."
-                          : pushStatus === "DENIED"
-                          ? "Verification request denied on device."
-                          : pushStatus === "EXPIRED"
-                          ? "Prompt expired. Click Resend below."
-                          : "Waiting for approval on your device..."}
-                      </span>
-                    </div>
-                    <div className="flex justify-center space-x-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => triggerPushChallenge()}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Resend Prompt
-                      </button>
-                      <span className="text-gray-300">|</span>
-                      <button
-                        type="button"
-                        onClick={() => setMfaMethod("TOTP")}
-                        className="text-xs font-medium text-gray-600 hover:text-gray-900 underline"
-                      >
-                        Use 6-Digit Authenticator Code Instead
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {mfaMethod !== "PASSKEY" && mfaMethod !== "PUSH" && (
+                {mfaMethod !== "PASSKEY" && (
                   <div>
                     <label htmlFor="mfa-code" className="block text-sm font-medium text-gray-700">
                       {mfaMethod === "RECOVERY" ? "Recovery code" : "Authenticator code"}

@@ -855,7 +855,6 @@ export default function SettingsPage() {
                   className="w-full px-4 py-2 border rounded-lg bg-white text-gray-900"
                 >
                   {securityMethods.totpEnabled && <option value="TOTP">Authenticator</option>}
-                  {securityMethods.pushEnabled && <option value="PUSH">Tap to Verify (Mobile Push)</option>}
                   {securityMethods.passkeyEnabled && <option value="PASSKEY">Passkey</option>}
                   {securityMethods.recoveryCodesRemaining > 0 && (
                     <option value="RECOVERY">Recovery Code</option>
@@ -864,12 +863,6 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={togglePush}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-                >
-                  {securityMethods.pushEnabled ? "Disable Tap to Verify" : "Enable Tap to Verify"}
-                </button>
                 <button
                   onClick={securityMethods.totpEnabled ? disableTotp : setupTotp}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

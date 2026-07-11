@@ -11,6 +11,7 @@ function ChooseRoleForm() {
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email");
   const redirect = searchParams.get("redirect");
+  const source = searchParams.get("source");
   const { user, isAuthenticated, isLoading } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(SERVICE_CATEGORIES[0]);
@@ -46,17 +47,19 @@ function ChooseRoleForm() {
         }
 
         if (user?.emailVerified) {
-          if (redirect) {
+          if (source === "dwelly") {
+            router.push("/return-to-app");
+          } else if (redirect) {
             router.push(redirect);
           } else {
             router.push(role === "services" ? "/services" : (role === "helper" ? "/helper" : "/"));
           }
         } else {
-          router.push(`/verify-email?email=${encodeURIComponent(user?.email || emailParam || "")}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
+          router.push(`/verify-email?email=${encodeURIComponent(user?.email || emailParam || "")}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`);
         }
       } else if (emailParam) {
         // Unauthenticated but just came from signup page (fallback)
-        router.push(`/verify-email?email=${encodeURIComponent(emailParam)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`);
+        router.push(`/verify-email?email=${encodeURIComponent(emailParam)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`);
       } else {
         router.push(redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login");
       }

@@ -39,6 +39,20 @@ const formatPropertyType = (type: PropertyType): string => {
   return labels[type] || type;
 };
 
+const isNoBedBathPropertyType = (type?: PropertyType | string): boolean => {
+  if (!type) return false;
+  return [
+    "BEDSITTER",
+    "SINGLE_ROOM",
+    "DOUBLE_ROOM",
+    "ROOM",
+    "STUDIO",
+    "OFFICE",
+    "SHOP",
+    "WAREHOUSE",
+  ].includes(type);
+};
+
 const defaultAmenities = [
   "Air Conditioning",
   "Heating",
@@ -99,6 +113,15 @@ export default function EditRentalPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    if (name === "propertyType") {
+      const isNoBedBath = isNoBedBathPropertyType(value);
+      setFormData({
+        ...formData,
+        propertyType: value as PropertyType,
+        ...(isNoBedBath ? { bedrooms: 0, bathrooms: 0 } : {}),
+      });
+      return;
+    }
     setFormData({
       ...formData,
       [name]: type === "number" ? Number(value) : value,
@@ -383,14 +406,18 @@ export default function EditRentalPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Property Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bedrooms {isNoBedBathPropertyType(formData.propertyType) && <span className="text-xs text-gray-400 font-normal">(N/A)</span>}
+              </label>
               <select
                 name="bedrooms"
-                value={formData.bedrooms || 1}
+                value={isNoBedBathPropertyType(formData.propertyType) ? 0 : (formData.bedrooms ?? 0)}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                disabled={isNoBedBathPropertyType(formData.propertyType)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                {[1, 2, 3, 4, 5].map((count) => (
+                <option value={0}>0 (N/A)</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
                   <option key={count} value={count}>
                     {count}
                   </option>
@@ -398,14 +425,18 @@ export default function EditRentalPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bathrooms {isNoBedBathPropertyType(formData.propertyType) && <span className="text-xs text-gray-400 font-normal">(N/A)</span>}
+              </label>
               <input
                 type="number"
                 name="bathrooms"
-                value={formData.bathrooms || 0}
+                value={isNoBedBathPropertyType(formData.propertyType) ? 0 : (formData.bathrooms ?? 0)}
                 onChange={handleInputChange}
+                disabled={isNoBedBathPropertyType(formData.propertyType)}
                 min="0"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                placeholder={isNoBedBathPropertyType(formData.propertyType) ? "N/A" : "0"}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -463,29 +494,6 @@ export default function EditRentalPage() {
                 <span className="ml-2 text-sm text-gray-700">Parking Available</span>
               </label>
             </div>
-          </div>
-        </div>
-
-        {/* Privacy & Approval */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy Settings</h2>
-          <div className="space-y-4">
-            <label className="flex items-start">
-              <input
-                type="checkbox"
-                name="requiresApproval"
-                checked={formData.requiresApproval || false}
-                onChange={handleCheckboxChange}
-                className="w-4 h-4 mt-1 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <div className="ml-3">
-                <span className="text-sm font-medium text-gray-700">Require Super Admin Approval</span>
-                <p className="text-sm text-gray-500">
-                  When enabled, this listing will be reviewed by a super admin before being published.
-                  This adds an extra layer of confidentiality for sensitive listings.
-                </p>
-              </div>
-            </label>
           </div>
         </div>
 
