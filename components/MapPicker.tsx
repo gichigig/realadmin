@@ -32,11 +32,25 @@ function ClickHandler({ onLocationSelected }: { onLocationSelected: (latlng: L.L
 
 function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
+  const initialCenterRef = useRef(false);
+
   useEffect(() => {
-    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      map.flyTo([lat, lng], 14, { duration: 1.2 });
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+
+    if (!initialCenterRef.current) {
+      initialCenterRef.current = true;
+      map.setView([lat, lng], 14, { animate: false });
+      return;
+    }
+
+    const currentCenter = map.getCenter();
+    const dist = Math.hypot(currentCenter.lat - lat, currentCenter.lng - lng);
+    // Only re-center if the coordinates moved significantly outside current view
+    if (dist > 0.05) {
+      map.setView([lat, lng], map.getZoom(), { animate: true });
     }
   }, [lat, lng, map]);
+
   return null;
 }
 
@@ -140,6 +154,7 @@ export default function MapPicker({ latitude, longitude, onChange }: MapPickerPr
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          keepBuffer={4}
         />
         <RecenterMap lat={latitude || -1.2921} lng={longitude || 36.8219} />
         <ClickHandler onLocationSelected={handleLocationSelected} />
