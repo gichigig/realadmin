@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: realestate-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.ishinadwelly.com/api
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=452516814543-53pfir4db2uuhqro97kkohu99su99ld2.apps.googleusercontent.com
