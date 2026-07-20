@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { Building, buildingsApi, rentalsApi, Rental } from "@/lib/api";
 import { PlusIcon, BuildingOffice2Icon, MapPinIcon, HomeModernIcon, ArrowRightIcon, EllipsisVerticalIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 
@@ -90,10 +91,7 @@ export default function BuildingsPage() {
         {/* Loading / Cards Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="relative w-12 h-12">
-              <div className="absolute inset-0 rounded-full border-4 border-blue-500/20" />
-              <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-            </div>
+            <DwellyOrbitingLoader size={72} />
             <p className="text-gray-500 text-sm animate-pulse">Loading buildings and portfolios...</p>
           </div>
         ) : buildings.length > 0 ? (

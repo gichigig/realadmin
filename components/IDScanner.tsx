@@ -49,7 +49,9 @@ export default function IDScanner() {
   const [rotation, setRotation] = useState(0);
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [contactMethod, setContactMethod] = useState<"PHONE" | "SOCIAL_MEDIA" | "IN_APP">("PHONE");
   const [finderPhone, setFinderPhone] = useState("");
+  const [socialMediaHandle, setSocialMediaHandle] = useState("");
   const [foundLocation, setFoundLocation] = useState("");
   const [collectionLocation, setCollectionLocation] = useState("");
   const [selectedIdType, setSelectedIdType] = useState<
@@ -403,8 +405,13 @@ export default function IDScanner() {
       return;
     }
 
-    if (!finderPhone.trim()) {
+    if (contactMethod === "PHONE" && !finderPhone.trim()) {
       setError("Please enter your phone number so the owner can contact you.");
+      return;
+    }
+
+    if (contactMethod === "SOCIAL_MEDIA" && !socialMediaHandle.trim()) {
+      setError("Please enter your social media handle so the owner can contact you.");
       return;
     }
 
@@ -439,7 +446,9 @@ export default function IDScanner() {
           idType: selectedIdType,
           schoolName: selectedIdType === "SCHOOL_ID" ? schoolName.trim() : null,
           dateOfBirth: dateOfBirth,
-          finderPhone: finderPhone.trim(),
+          contactMethod: contactMethod,
+          finderPhone: contactMethod === "PHONE" ? finderPhone.trim() : null,
+          socialMediaHandle: contactMethod === "SOCIAL_MEDIA" ? socialMediaHandle.trim() : null,
           foundLocation: foundLocation.trim() || null,
           collectionLocation: collectionLocation.trim() || null,
           recaptchaToken: recaptchaToken,
@@ -813,18 +822,62 @@ export default function IDScanner() {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Your Phone Number *
+                            Preferred Contact Method *
                           </label>
-                          <input
-                            type="tel"
-                            value={finderPhone}
-                            onChange={(e) => setFinderPhone(e.target.value)}
-                            placeholder="e.g., 0712345678"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            The ID owner will use this to contact you
-                          </p>
+                          <select
+                            value={contactMethod}
+                            onChange={(e) => setContactMethod(e.target.value as any)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 mb-3"
+                          >
+                            <option value="PHONE">Phone Number</option>
+                            <option value="SOCIAL_MEDIA">Social Media Handle (Twitter, Instagram, etc.)</option>
+                            <option value="IN_APP">Temporary In-App Chat (Anonymous)</option>
+                          </select>
+
+                          {contactMethod === "PHONE" && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Your Phone Number *
+                              </label>
+                              <input
+                                type="tel"
+                                value={finderPhone}
+                                onChange={(e) => setFinderPhone(e.target.value)}
+                                placeholder="e.g., 0712345678"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                The ID owner will use this phone number to contact you.
+                              </p>
+                            </div>
+                          )}
+
+                          {contactMethod === "SOCIAL_MEDIA" && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Social Media Handle *
+                              </label>
+                              <input
+                                type="text"
+                                value={socialMediaHandle}
+                                onChange={(e) => setSocialMediaHandle(e.target.value)}
+                                placeholder="e.g., @johndoe on Twitter or instagram.com/johndoe"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                The ID owner will reach out to you via your social handle.
+                              </p>
+                            </div>
+                          )}
+
+                          {contactMethod === "IN_APP" && (
+                            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                              <p className="font-medium">Anonymous In-App Chat Selected</p>
+                              <p className="text-xs mt-1">
+                                The ID owner will contact you through our secure in-app messaging without seeing your phone number or identity.
+                              </p>
+                            </div>
+                          )}
                         </div>
                         
                         <div>
@@ -862,7 +915,7 @@ export default function IDScanner() {
                         
                         <button
                           onClick={uploadFoundId}
-                          disabled={uploading || !finderPhone.trim()}
+                          disabled={uploading || (contactMethod === "PHONE" && !finderPhone.trim()) || (contactMethod === "SOCIAL_MEDIA" && !socialMediaHandle.trim())}
                           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {uploading ? (
@@ -910,18 +963,24 @@ export default function IDScanner() {
                         Download our mobile app to search the database of found IDs
                         and get notified when someone finds yours.
                       </p>
-                      <div className="flex gap-3 mt-3">
+                      <div className="flex flex-wrap gap-3 mt-3">
                         <a
                           href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert("Apple iOS version is coming soon!");
+                          }}
                           className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
                         >
                           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                           </svg>
-                          App Store
+                          App Store (Coming Soon)
                         </a>
                         <a
-                          href="#"
+                          href="https://play.google.com/store/apps/details?id=com.ishinadwelly.app"
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
                         >
                           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">

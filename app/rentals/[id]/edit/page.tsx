@@ -8,6 +8,7 @@ import { PhotoIcon, XMarkIcon, ArrowLeftIcon, VideoCameraIcon } from "@heroicons
 import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import HashtagsInput from "@/components/HashtagsInput";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -72,7 +73,7 @@ export default function EditRentalPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [images, setImages] = useState<{ url: string; filename: string }[]>([]);
+  const [images, setImages] = useState<{ url: string; filename: string; thumbnailUrl?: string; mediumUrl?: string }[]>([]);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -92,9 +93,11 @@ export default function EditRentalPage() {
         setSelectedAmenities(data.amenities || []);
         setHashtags(data.hashtags || []);
         setImages(
-          (data.imageUrls || []).map((url) => ({
+          (data.imageUrls || []).map((url, index) => ({
             url,
             filename: url.split("/").pop() || "",
+            thumbnailUrl: data.thumbnailUrls?.[index] || "",
+            mediumUrl: data.mediumUrls?.[index] || "",
           }))
         );
       } catch (error) {
@@ -149,10 +152,12 @@ export default function EditRentalPage() {
     try {
       const newImages = [];
       for (const file of Array.from(files)) {
-        const result = await filesApi.upload(file);
+        const result = await filesApi.uploadPropertyImage(file);
         newImages.push({
           url: result.url,
           filename: result.url,
+          thumbnailUrl: result.thumbnailUrl,
+          mediumUrl: result.mediumUrl,
         });
       }
       setImages([...images, ...newImages]);
@@ -270,6 +275,8 @@ export default function EditRentalPage() {
       const rental: Rental = {
         ...formData as Rental,
         imageUrls: images.map((img) => img.url),
+        thumbnailUrls: images.map((img) => img.thumbnailUrl || ""),
+        mediumUrls: images.map((img) => img.mediumUrl || ""),
         hasVideo: (formData.videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
         hashtags: hashtags,
@@ -289,7 +296,7 @@ export default function EditRentalPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        <DwellyOrbitingLoader size={32} />
       </div>
     );
   }
@@ -528,7 +535,7 @@ export default function EditRentalPage() {
             {images.map((image, index) => (
               <div key={index} className="relative group">
                 <img
-                  src={filesApi.getUrl(image.url)}
+                  src={filesApi.getUrl(image.thumbnailUrl || image.url)}
                   alt={`Property ${index + 1}`}
                   className="w-full h-32 object-cover rounded-lg"
                 />
@@ -546,7 +553,7 @@ export default function EditRentalPage() {
           <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
             <div className="flex flex-col items-center justify-center">
               {uploadingImages ? (
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                <DwellyOrbitingLoader size={32} />
               ) : (
                 <>
                   <PhotoIcon className="w-10 h-10 text-gray-400" />
@@ -604,7 +611,7 @@ export default function EditRentalPage() {
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                       <div className="flex flex-col items-center justify-center">
                         {uploadingVideo ? (
-                          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                          <DwellyOrbitingLoader size={32} />
                         ) : (
                           <>
                             <VideoCameraIcon className="w-10 h-10 text-blue-400" />
@@ -662,7 +669,7 @@ export default function EditRentalPage() {
                         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                           <div className="flex flex-col items-center justify-center">
                             {uploadingCompoundVideo ? (
-                              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                              <DwellyOrbitingLoader size={32} />
                             ) : (
                               <>
                                 <PhotoIcon className="w-8 h-8 text-blue-400" />

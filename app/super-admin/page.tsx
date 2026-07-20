@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { superAdminApi, SuperAdminStats, AdminUser } from "@/lib/api";
 import {
   UsersIcon,
@@ -53,7 +54,7 @@ export default function SuperAdminDashboard() {
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }

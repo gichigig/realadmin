@@ -26,6 +26,7 @@ import {
   PresentationChartLineIcon,
   WrenchScrewdriverIcon,
   BellAlertIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline";
 
 const landlordNavigation = [
@@ -58,7 +59,9 @@ const superAdminNavigation = [
   { name: "Ad Approvals", href: "/super-admin/ad-approvals", icon: ClipboardDocumentCheckIcon },
   { name: "All Users", href: "/super-admin/users", icon: UsersIcon },
   { name: "Helpers", href: "/super-admin/helpers", icon: WrenchScrewdriverIcon },
+  { name: "Helper Payouts", href: "/super-admin/helper-payouts", icon: BanknotesIcon },
   { name: "Helper Disputes", href: "/super-admin/disputes", icon: ChatBubbleLeftRightIcon },
+  { name: "Found ID Chats", href: "/super-admin/temporary-chats", icon: ChatBubbleLeftRightIcon },
   { name: "All Rentals", href: "/super-admin/rentals", icon: BuildingOfficeIcon },
   { name: "Pending Approvals", href: "/super-admin/pending", icon: ClipboardDocumentCheckIcon },
   { name: "Reports", href: "/super-admin/reports", icon: FlagIcon },
@@ -79,6 +82,16 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const router = useRouter();
   const { user, logout, isAuthenticated, isSuperAdmin } = useAuth();
   const [workspace, setWorkspace] = useState<"landlord" | "helper" | "services">("landlord");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const effectiveCollapsed = isMobile ? false : isCollapsed;
 
   useEffect(() => {
     if (!isSuperAdmin && user?.primaryRole) {
@@ -161,19 +174,19 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           flex flex-col bg-gray-900 text-white
           transform transition-all duration-300 ease-in-out
           lg:h-screen lg:overflow-y-auto
-          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-          ${isCollapsed ? "lg:w-16" : "w-56"}
+          ${isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"}
+          ${effectiveCollapsed ? "lg:w-16" : "w-64 lg:w-56"}
         `}
       >
         {/* Header */}
         <div className="flex items-center justify-between h-13 px-3 border-b border-gray-800">
-          {!isCollapsed && (
+          {!effectiveCollapsed && (
             <div className="flex items-center space-x-2 min-w-0">
               <img src="/icon.png" alt="Dwelly Logo" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
               <h1 className="text-base font-bold truncate">IshinaDwelly Admin</h1>
             </div>
           )}
-          {isCollapsed && (
+          {effectiveCollapsed && (
             <div className="w-full flex justify-center">
               <img src="/icon.png" alt="Dwelly Logo" className="w-7 h-7 rounded-full object-cover" />
             </div>
@@ -188,7 +201,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         </div>
 
         {/* Workspace Switcher / Indicator */}
-        {!isCollapsed && (
+        {!effectiveCollapsed && (
           <div className="px-3 pt-4 pb-1">
             {isSuperAdmin ? (
               <div className="bg-gray-800 p-1 rounded-lg flex text-xs">
@@ -242,11 +255,11 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                   isActive
                     ? "bg-blue-600 text-white"
                     : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                } ${isCollapsed ? "justify-center" : ""}`}
-                title={isCollapsed ? item.name : undefined}
+                } ${effectiveCollapsed ? "justify-center" : ""}`}
+                title={effectiveCollapsed ? item.name : undefined}
               >
-                <item.icon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                {!isCollapsed && <span>{item.name}</span>}
+                <item.icon className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
+                {!effectiveCollapsed && <span>{item.name}</span>}
               </Link>
             );
           })}
@@ -256,14 +269,14 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           {/* Super Admin Section */}
           {isSuperAdmin && (
             <>
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <div className="pt-4 pb-2">
                   <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Super Admin
                   </p>
                 </div>
               )}
-              {isCollapsed && <div className="border-t border-gray-700 my-2" />}
+              {effectiveCollapsed && <div className="border-t border-gray-700 my-2" />}
               {superAdminNavigation.map((item) => {
                 const isActive = pathname === item.href || 
                   (item.href !== "/super-admin" && pathname.startsWith(item.href));
@@ -277,11 +290,11 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       isActive
                         ? "bg-amber-600 text-white"
                         : "text-amber-300 hover:bg-gray-800 hover:text-amber-200"
-                    } ${isCollapsed ? "justify-center" : ""}`}
-                    title={isCollapsed ? item.name : undefined}
+                    } ${effectiveCollapsed ? "justify-center" : ""}`}
+                    title={effectiveCollapsed ? item.name : undefined}
                   >
-                    <item.icon className={`w-5 h-5 ${isCollapsed ? "" : "mr-3"}`} />
-                    {!isCollapsed && <span>{item.name}</span>}
+                    <item.icon className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
+                    {!effectiveCollapsed && <span>{item.name}</span>}
                   </Link>
                 );
               })}
@@ -294,9 +307,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           <button
             onClick={onToggleCollapse}
             className="flex items-center justify-center w-full p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? (
+            {effectiveCollapsed ? (
               <ChevronRightIcon className="w-5 h-5" />
             ) : (
               <>
@@ -310,21 +323,21 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
         {/* User section */}
         <div className="p-3 border-t border-gray-800">
-          <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-            <div className={`flex items-center ${isCollapsed ? "" : "min-w-0 flex-1"}`}>
+          <div className={`flex items-center ${effectiveCollapsed ? "justify-center" : "justify-between"}`}>
+            <div className={`flex items-center ${effectiveCollapsed ? "" : "min-w-0 flex-1"}`}>
               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-medium">
                   {user?.firstName?.[0] || "U"}
                 </span>
               </div>
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <div className="ml-3 min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{user?.firstName} {user?.lastName}</p>
                   <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                 </div>
               )}
             </div>
-            {!isCollapsed && (
+            {!effectiveCollapsed && (
               <button
                 onClick={handleLogout}
                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
@@ -334,7 +347,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               </button>
             )}
           </div>
-          {isCollapsed && (
+          {effectiveCollapsed && (
             <button
               onClick={handleLogout}
               className="w-full mt-2 p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"

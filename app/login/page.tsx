@@ -83,6 +83,7 @@ function LoginForm() {
       return;
     }
     const interval = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const res = await pollPushChallengeStatus(mfaChallenge.challengeId);
         if (res.status === "APPROVED") {

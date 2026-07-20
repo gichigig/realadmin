@@ -14,6 +14,7 @@ import {
   RentalPaymentInitResponse,
   RentalPaymentStatus,
 } from "@/lib/api";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import {
   PencilIcon,
   TrashIcon,
@@ -515,7 +516,7 @@ export default function RentalsPage() {
         <div className="bg-white rounded-lg shadow overflow-x-auto">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+              <DwellyOrbitingLoader size={32} />
               <p className="mt-4 text-gray-600">Loading rentals...</p>
             </div>
           ) : rentals && rentals.content.length > 0 ? (

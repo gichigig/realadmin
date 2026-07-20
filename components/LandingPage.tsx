@@ -36,6 +36,9 @@ const AnimatedGlobe = dynamic(() => import("@/components/AnimatedGlobe"), {
   ),
 });
 
+const MPESA_PAYBILL_NUMBER = process.env.NEXT_PUBLIC_MPESA_PAYBILL || "4326353";
+const MPESA_ACCOUNT_NUMBER = process.env.NEXT_PUBLIC_MPESA_ACCOUNT || "DONATE";
+
 const features = [
   {
     name: "Property Management",
@@ -129,7 +132,7 @@ export default function LandingPage() {
 
             {/* Mobile Hamburger Button */}
             <div className="md:hidden flex items-center">
-              <button 
+              <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="p-2 -mr-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Toggle menu"
@@ -147,22 +150,22 @@ export default function LandingPage() {
           {isMobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-gray-100 bg-white">
               <div className="flex flex-col space-y-4 px-2 pb-4">
-                <Link 
-                  href="/help" 
+                <Link
+                  href="/help"
                   className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   How it Works
                 </Link>
-                <Link 
-                  href="/faqs" 
+                <Link
+                  href="/faqs"
                   className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   FAQs
                 </Link>
-                <Link 
-                  href="/help#download" 
+                <Link
+                  href="/help#download"
                   className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -170,22 +173,22 @@ export default function LandingPage() {
                 </Link>
                 <div className="h-px bg-gray-100 my-2"></div>
                 {isAuthenticated ? (
-                  <Link 
-                    href="/rentals" 
+                  <Link
+                    href="/rentals"
                     className="w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
                     My Rentals
                   </Link>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <Link 
-                      href="/login" 
+                    <Link
+                      href="/login"
                       className="w-full text-center px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                     >
                       Sign In
                     </Link>
-                    <Link 
-                      href="/signup" 
+                    <Link
+                      href="/signup"
                       className="w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     >
                       Get Started
@@ -768,10 +771,10 @@ export default function LandingPage() {
                 <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="text-green-100 text-xs uppercase tracking-wide">Paybill Number</p>
-                    <p className="text-white text-2xl font-bold tracking-wider">123456</p>
+                    <p className="text-white text-2xl font-bold tracking-wider">{MPESA_PAYBILL_NUMBER}</p>
                   </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText('123456')}
+                    onClick={() => navigator.clipboard.writeText(MPESA_PAYBILL_NUMBER)}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     title="Copy"
                   >
@@ -783,10 +786,10 @@ export default function LandingPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-green-100 text-xs uppercase tracking-wide">Account Number</p>
-                    <p className="text-white text-2xl font-bold tracking-wider">DONATE</p>
+                    <p className="text-white text-2xl font-bold tracking-wider">{MPESA_ACCOUNT_NUMBER}</p>
                   </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText('DONATE')}
+                    onClick={() => navigator.clipboard.writeText(MPESA_ACCOUNT_NUMBER)}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     title="Copy"
                   >
@@ -967,18 +970,24 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <a
                   href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert("Apple iOS version is coming soon!");
+                  }}
                   className="inline-flex items-center px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
                 >
                   <svg className="w-8 h-8 mr-3" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                   </svg>
                   <div className="text-left">
-                    <div className="text-xs opacity-75">Download on the</div>
+                    <div className="text-xs opacity-75">Coming Soon on</div>
                     <div className="text-lg font-semibold">App Store</div>
                   </div>
                 </a>
                 <a
-                  href="#"
+                  href="https://play.google.com/store/apps/details?id=com.ishinadwelly.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
                 >
                   <svg className="w-8 h-8 mr-3" viewBox="0 0 24 24" fill="currentColor">

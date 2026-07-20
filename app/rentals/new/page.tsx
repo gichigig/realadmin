@@ -8,6 +8,7 @@ import { PhotoIcon, XMarkIcon, VideoCameraIcon } from "@heroicons/react/24/outli
 import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import HashtagsInput from "@/components/HashtagsInput";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -71,7 +72,7 @@ export default function NewRentalPage() {
   const { user, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [images, setImages] = useState<{ file?: File; url: string; filename: string }[]>([]);
+  const [images, setImages] = useState<{ file?: File; url: string; filename: string; thumbnailUrl?: string; mediumUrl?: string }[]>([]);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [uploadingCompoundVideo, setUploadingCompoundVideo] = useState(false);
@@ -111,17 +112,17 @@ export default function NewRentalPage() {
     const { name, value, type } = e.target;
     if (name === "propertyType") {
       const isNoBedBath = isNoBedBathPropertyType(value);
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         propertyType: value as PropertyType,
         ...(isNoBedBath ? { bedrooms: 0, bathrooms: 0 } : {}),
-      });
+      }));
       return;
     }
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: type === "number" ? Number(value) : value,
-    });
+    }));
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,9 +132,7 @@ export default function NewRentalPage() {
 
   const handleAmenityToggle = (amenity: string) => {
     setSelectedAmenities((prev) =>
-      prev.includes(amenity)
-        ? prev.filter((a) => a !== amenity)
-        : [...prev, amenity]
+      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
     );
   };
 
@@ -151,10 +150,12 @@ export default function NewRentalPage() {
     try {
       const newImages = [];
       for (const file of Array.from(files)) {
-        const result = await filesApi.upload(file);
+        const result = await filesApi.uploadPropertyImage(file);
         newImages.push({
           url: result.url,
           filename: result.url,
+          thumbnailUrl: result.thumbnailUrl,
+          mediumUrl: result.mediumUrl,
         });
       }
       setImages([...images, ...newImages]);
@@ -282,6 +283,8 @@ export default function NewRentalPage() {
       const rental: Rental = {
         ...formData as Rental,
         imageUrls: images.map((img) => img.url),
+        thumbnailUrls: images.map((img) => img.thumbnailUrl || ""),
+        mediumUrls: images.map((img) => img.mediumUrl || ""),
         videoUrl: videoUrl || undefined,
         hasVideo: (videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
@@ -511,7 +514,7 @@ export default function NewRentalPage() {
             {images.map((image, index) => (
               <div key={index} className="relative group">
                 <img
-                  src={filesApi.getUrl(image.url)}
+                  src={filesApi.getUrl(image.thumbnailUrl || image.url)}
                   alt={`Property ${index + 1}`}
                   className="w-full h-32 object-cover rounded-lg"
                 />
@@ -529,7 +532,7 @@ export default function NewRentalPage() {
           <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
             <div className="flex flex-col items-center justify-center">
               {uploadingImages ? (
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                <DwellyOrbitingLoader size={32} />
               ) : (
                 <>
                   <PhotoIcon className="w-10 h-10 text-gray-400" />
@@ -586,7 +589,7 @@ export default function NewRentalPage() {
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                       <div className="flex flex-col items-center justify-center">
                         {uploadingVideo ? (
-                          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                          <DwellyOrbitingLoader size={32} />
                         ) : (
                           <>
                             <VideoCameraIcon className="w-10 h-10 text-blue-400" />
@@ -644,7 +647,7 @@ export default function NewRentalPage() {
                         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                           <div className="flex flex-col items-center justify-center">
                             {uploadingCompoundVideo ? (
-                              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                              <DwellyOrbitingLoader size={32} />
                             ) : (
                               <>
                                 <PhotoIcon className="w-8 h-8 text-blue-400" />

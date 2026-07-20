@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -160,7 +161,7 @@ export default function UsersPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }
@@ -261,7 +262,7 @@ export default function UsersPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <DwellyOrbitingLoader size={64} />
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">

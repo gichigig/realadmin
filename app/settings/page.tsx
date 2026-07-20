@@ -431,11 +431,16 @@ export default function SettingsPage() {
       }
       const options = await optionsResponse.json();
 
+      const rpId =
+        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+          ? window.location.hostname
+          : options.relyingParty.id || window.location.hostname;
+
       const publicKey: PublicKeyCredentialCreationOptions = {
         challenge: decodeBase64Url(options.challenge),
         rp: {
-          id: options.relyingParty.id,
-          name: options.relyingParty.name,
+          id: rpId,
+          name: options.relyingParty.name || "IshinaDwelly",
         },
         user: {
           id: decodeBase64Url(options.user.id),
@@ -467,20 +472,17 @@ export default function SettingsPage() {
         getPublicKey?: () => ArrayBuffer | null;
         getPublicKeyAlgorithm?: () => number;
       };
-      const publicKeyBuffer = responseData.getPublicKey ? responseData.getPublicKey() : null;
-      const publicKeyAlgorithm = responseData.getPublicKeyAlgorithm
-        ? responseData.getPublicKeyAlgorithm()
-        : null;
-      if (!publicKeyBuffer || publicKeyAlgorithm == null) {
-        throw new Error("Browser did not provide passkey public key metadata");
-      }
+      const publicKeyBuffer = typeof responseData.getPublicKey === "function" ? responseData.getPublicKey() : null;
+      const publicKeyAlgorithm =
+        typeof responseData.getPublicKeyAlgorithm === "function" ? responseData.getPublicKeyAlgorithm() : null;
+
       const verifyResponse = await fetch(`${apiBase}/auth/security/passkeys/registration/verify`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({
           registrationId: options.registrationId,
           registrationToken: options.registrationToken,
-          name: window.prompt("Passkey name (optional)") || "",
+          name: window.prompt("Passkey name (optional)") || "My Passkey",
           credential: {
             id: credential.id,
             rawId: encodeBase64Url(credential.rawId),
@@ -488,8 +490,8 @@ export default function SettingsPage() {
             response: {
               clientDataJSON: encodeBase64Url(responseData.clientDataJSON),
               attestationObject: encodeBase64Url(responseData.attestationObject),
-              publicKey: encodeBase64Url(publicKeyBuffer),
-              publicKeyAlgorithm,
+              publicKey: publicKeyBuffer ? encodeBase64Url(publicKeyBuffer) : null,
+              publicKeyAlgorithm: publicKeyAlgorithm ?? -7,
             },
             clientExtensionResults: credential.getClientExtensionResults(),
           },

@@ -33,6 +33,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isPublicPath = publicPaths.includes(pathname);
   const isHomePage = pathname === "/";
+  const isMessagesPage = pathname?.startsWith("/messages");
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -80,7 +81,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen h-[100dvh] bg-gray-50 overflow-hidden">
       <Sidebar 
         isOpen={sidebarOpen}
         isCollapsed={sidebarCollapsed}
@@ -92,7 +93,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-16" : "w-56"}`} />
       
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Mobile header */}
         <header className="lg:hidden flex-shrink-0 flex items-center h-13 px-3 bg-white border-b border-gray-200 shadow-sm">
           <button
@@ -105,11 +106,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <h1 className="ml-2 text-base font-semibold text-gray-900 truncate">IshinaDwelly Admin</h1>
         </header>
         
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">{children}</main>
+        <main className={`flex-1 min-h-0 ${isMessagesPage ? "p-0 md:p-6 lg:p-8 overflow-hidden flex flex-col" : "p-4 md:p-6 lg:p-8 overflow-y-auto"}`}>
+          {children}
+        </main>
         
         {/* Ad Banner at the bottom of the screen */}
         {!(user?.isPremiumActive || user?.premiumActive) && (
-          <div className="flex-shrink-0 px-4 md:px-6 lg:px-8 bg-gray-50 border-t border-gray-200">
+          <div className={`flex-shrink-0 px-4 md:px-6 lg:px-8 bg-gray-50 border-t border-gray-200 ${isMessagesPage ? "hidden lg:block" : ""}`}>
             <GoogleAdBanner />
           </div>
         )}
@@ -117,3 +120,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

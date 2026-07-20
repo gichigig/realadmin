@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ishinadwelly.com/api";
 const AUTH_REQUEST_TIMEOUT_MS = 10000;
 const SESSION_EXPIRED_EVENT = "realadmin:session-expired";
 

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ishinadwelly.com/api";
 const SESSION_EXPIRED_EVENT = "realadmin:session-expired";
 
 // Helper to get token from localStorage
@@ -64,6 +64,8 @@ export interface Rental {
   propertyType: PropertyType;
   status: RentalStatus;
   imageUrls: string[];
+  thumbnailUrls?: string[];
+  mediumUrls?: string[];
 
   amenities: string[];
   hashtags: string[];
@@ -438,9 +440,10 @@ export const buildingsApi = {
 // Files API
 type BasicUploadResponse = { filename: string; url: string };
 type FileUrlUploadResponse = { url: string; storage: string };
+type PropertyImageUploadResponse = { url: string; thumbnailUrl?: string; mediumUrl?: string; storage: string };
 type AdMediaUploadResponse = { url: string; type: string; storage: string };
 type MultipleBasicUploadResponse = { files: BasicUploadResponse[] };
-type MultiplePropertyUploadResponse = { files: { url: string }[]; storage: string };
+type MultiplePropertyImageUploadResponse = { files: { url: string; thumbnailUrl?: string; mediumUrl?: string }[]; storage: string };
 type FileStorageInfo = {
   usingR2: boolean;
   maxImageSize: number;
@@ -456,9 +459,9 @@ interface FilesApi {
   uploadVideo: (file: File) => Promise<FileUrlUploadResponse>;
   uploadDocument: (file: File) => Promise<FileUrlUploadResponse>;
   uploadAdMedia: (file: File) => Promise<AdMediaUploadResponse>;
-  uploadPropertyImage: (file: File) => Promise<FileUrlUploadResponse>;
+  uploadPropertyImage: (file: File) => Promise<PropertyImageUploadResponse>;
   uploadAvatar: (file: File) => Promise<FileUrlUploadResponse>;
-  uploadMultiplePropertyImages: (files: File[]) => Promise<MultiplePropertyUploadResponse>;
+  uploadMultiplePropertyImages: (files: File[]) => Promise<MultiplePropertyImageUploadResponse>;
   getStorageInfo: () => Promise<FileStorageInfo>;
   deleteByUrl: (url: string) => Promise<void>;
 }
@@ -631,11 +634,30 @@ export const conversationsApi = {
     return response.json();
   },
 
-  getMessages: async (conversationId: number): Promise<Message[]> => {
-    const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages`);
+  getMessages: async (conversationId: number, page: number = 0, limit: number = 25): Promise<Message[]> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages?page=${page}&limit=${limit}`);
     if (!response.ok) throw new Error("Failed to fetch messages");
     const data = await response.json();
-    return data.content || data.messages || data;
+    return data.content || data.messages || (Array.isArray(data) ? data : []);
+  },
+
+  getMessagesPaginated: async (
+    conversationId: number,
+    page: number = 0,
+    limit: number = 25
+  ): Promise<{ messages: Message[]; hasMore: boolean; page: number; totalPages: number }> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/conversations/${conversationId}/messages?page=${page}&limit=${limit}`);
+    if (!response.ok) throw new Error("Failed to fetch messages");
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      return { messages: data, hasMore: false, page: 0, totalPages: 1 };
+    }
+    return {
+      messages: data.messages || data.content || [],
+      hasMore: data.hasMore || false,
+      page: data.page || 0,
+      totalPages: data.totalPages || 1,
+    };
   },
 
   sendMessage: async (conversationId: number, content: string): Promise<Message> => {
@@ -967,6 +989,22 @@ export const superAdminApi = {
     });
     if (!response.ok) {
       throw new Error("Failed to approve rental");
+    }
+    return response.json();
+  },
+
+  boostRental: async (
+    rentalId: number,
+    data: { sponsorshipType?: string; durationDays?: number; hasVideo?: boolean }
+  ): Promise<{ message: string; rental: RentalWithOwnerInfo }> => {
+    const response = await fetch(`${API_BASE_URL}/super-admin/rentals/${rentalId}/boost`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to update rental boost");
     }
     return response.json();
   },
@@ -1959,7 +1997,7 @@ Object.assign(filesApi, {
     return response.json();
   },
   
-  uploadPropertyImage: async (file: File): Promise<{ url: string; storage: string }> => {
+  uploadPropertyImage: async (file: File): Promise<PropertyImageUploadResponse> => {
     const formData = new FormData();
     formData.append("file", file);
     
@@ -2007,7 +2045,7 @@ Object.assign(filesApi, {
     return response.json();
   },
   
-  uploadMultiplePropertyImages: async (files: File[]): Promise<{ files: { url: string }[]; storage: string }> => {
+  uploadMultiplePropertyImages: async (files: File[]): Promise<MultiplePropertyImageUploadResponse> => {
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));
     
@@ -2316,7 +2354,7 @@ export const helperApi = {
     return response.json();
   },
 
-  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[]; serviceCategory?: string; serviceAreaMode?: string; serviceRadiusKm?: number; locationLatitude?: number; locationLongitude?: number; offeredServices?: string[] }) => {
+  updateProfile: async (data: { price?: number; county?: string; coverageLevel?: string; constituencies?: string[]; wards?: string[]; serviceCategory?: string; serviceAreaMode?: string; serviceRadiusKm?: number; locationLatitude?: number; locationLongitude?: number; offeredServices?: string[]; hideExactLocation?: boolean }) => {
     const response = await fetch(`${API_BASE_URL}/helper/profile`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -2359,6 +2397,7 @@ export const SERVICE_CATEGORIES = [
   "Babysitter",
   "House moving",
   "Water delivery",
+  "Internet provider",
 ];
 
 export const servicesApi = {

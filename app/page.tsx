@@ -109,24 +109,24 @@ export default function Dashboard() {
       </PremiumBanner>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
+            <div key={i} className="bg-white rounded-lg shadow p-5 sm:p-6 animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
               <div className="h-12 bg-gray-200 rounded w-3/4"></div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {statCards.map((stat) => (
-            <div key={stat.name} className="bg-white rounded-lg shadow p-6">
+            <div key={stat.name} className="bg-white rounded-lg shadow p-5 sm:p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center">
-                <div className={`${stat.color} p-3 rounded-lg`}>
+                <div className={`${stat.color} p-3 rounded-lg flex-shrink-0`}>
                   <stat.icon className="w-6 h-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                <div className="ml-4 min-w-0">
+                  <p className="text-sm font-medium text-gray-600 truncate">{stat.name}</p>
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                 </div>
               </div>
@@ -135,32 +135,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        <div className="bg-white rounded-lg shadow p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="space-y-4">
             <Link
               href="/rentals/new"
-              className="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center p-4 bg-blue-50/80 rounded-xl hover:bg-blue-100 transition-colors"
             >
-              <div className="bg-blue-500 p-2 rounded-lg">
+              <div className="bg-blue-500 p-2.5 rounded-lg flex-shrink-0">
                 <BuildingOfficeIcon className="w-5 h-5 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="font-medium text-gray-900">Add New Rental</p>
-                <p className="text-sm text-gray-600">Create a new rental listing</p>
+              <div className="ml-4 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">Add New Rental</p>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Create a new rental listing</p>
               </div>
             </Link>
             <Link
               href="/rentals"
-              className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+              className="flex items-center p-4 bg-green-50/80 rounded-xl hover:bg-green-100 transition-colors"
             >
-              <div className="bg-green-500 p-2 rounded-lg">
+              <div className="bg-green-500 p-2.5 rounded-lg flex-shrink-0">
                 <CheckCircleIcon className="w-5 h-5 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="font-medium text-gray-900">Manage Rentals</p>
-                <p className="text-sm text-gray-600">View and edit all listings</p>
+              <div className="ml-4 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">Manage Rentals</p>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">View and edit all listings</p>
               </div>
             </Link>
           </div>

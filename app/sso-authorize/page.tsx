@@ -23,7 +23,7 @@ export default function SsoAuthorizePage() {
 
     try {
       const token = localStorage.getItem("token");
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ishinadwelly.com/api";
       
       const response = await fetch(`${API_BASE_URL}/auth/sso/generate`, {
         method: "POST",
@@ -41,7 +41,7 @@ export default function SsoAuthorizePage() {
       const code = data.code;
 
       // Redirect to Dwelly app via deep link
-      window.location.href = `dwelly://auth/realadmin?code=${code}`;
+      window.location.href = `dwellyauth://auth/realadmin?code=${code}`;
       
     } catch (err: any) {
       console.error("SSO Error:", err);

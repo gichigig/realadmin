@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { helperApi, helperJobsApi, locationsApi } from "@/lib/api";
 import {
   CurrencyDollarIcon,
@@ -110,8 +111,8 @@ export default function HelperDashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 flex justify-center">
-        <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="p-12 flex justify-center items-center min-h-[350px]">
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }

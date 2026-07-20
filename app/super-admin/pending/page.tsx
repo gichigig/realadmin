@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { superAdminApi, AdminUser, RentalWithOwnerInfo } from "@/lib/api";
+import { superAdminApi, filesApi, AdminUser, RentalWithOwnerInfo } from "@/lib/api";
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -207,7 +207,7 @@ export default function SuperAdminPendingPage() {
                   <div className="flex items-center gap-4">
                     {rental.imageUrls?.[0] ? (
                       <img
-                        src={rental.imageUrls[0]}
+                        src={filesApi.getUrl(rental.thumbnailUrls?.[0] || rental.imageUrls[0])}
                         alt={rental.title}
                         className="w-16 h-16 rounded-lg object-cover"
                       />
@@ -438,7 +438,7 @@ export default function SuperAdminPendingPage() {
             <div className="px-6 py-4 space-y-4">
               {selectedRental.imageUrls?.[0] && (
                 <img
-                  src={selectedRental.imageUrls[0]}
+                  src={filesApi.getUrl(selectedRental.mediumUrls?.[0] || selectedRental.thumbnailUrls?.[0] || selectedRental.imageUrls[0])}
                   alt={selectedRental.title}
                   className="w-full h-48 object-cover rounded-lg"
                 />

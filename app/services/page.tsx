@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { servicesApi, helperJobsApi, locationsApi, SERVICE_CATEGORIES } from "@/lib/api";
 import {
   CurrencyDollarIcon,
@@ -33,6 +34,7 @@ export default function ServicesDashboard() {
   const [serviceRadiusKm, setServiceRadiusKm] = useState<number>(10);
   const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
   const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [hideExactLocation, setHideExactLocation] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState(false);
 
   // Wards & County fields
@@ -84,6 +86,7 @@ export default function ServicesDashboard() {
       setServiceRadiusKm(res.serviceRadiusKm || 10);
       setLocationLatitude(res.locationLatitude || null);
       setLocationLongitude(res.locationLongitude || null);
+      setHideExactLocation(res.hideExactLocation || false);
       setOfferedServices(res.offeredServices || []);
       
       const jobsRes = await helperJobsApi.getHelperJobs();
@@ -151,6 +154,7 @@ export default function ServicesDashboard() {
         serviceRadiusKm: serviceAreaMode === "RADIUS" ? serviceRadiusKm : undefined,
         locationLatitude: locationLatitude || undefined,
         locationLongitude: locationLongitude || undefined,
+        hideExactLocation,
         offeredServices,
       });
       setMessage({ type: "success", text: "Service settings and catalog updated successfully!" });
@@ -164,8 +168,8 @@ export default function ServicesDashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 flex justify-center">
-        <ArrowPathIcon className="w-8 h-8 animate-spin text-emerald-600" />
+      <div className="p-12 flex justify-center items-center min-h-[350px]">
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }
@@ -337,6 +341,23 @@ export default function ServicesDashboard() {
                         <span>25 km</span>
                         <span>50 km</span>
                       </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-200">
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hideExactLocation}
+                          onChange={(e) => setHideExactLocation(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                        />
+                        <div>
+                          <span className="text-sm font-semibold text-gray-800">Hide exact pinned coordinates from clients</span>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Recommended for mobile providers with no physical storefront. Clients will see your service area radius without exact GPS coordinates or directions.
+                          </p>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 ) : (

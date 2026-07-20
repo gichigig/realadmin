@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { rentalsApi, filesApi, Rental } from "@/lib/api";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { 
   PencilIcon,
   ArrowLeftIcon,
@@ -38,7 +39,7 @@ export default function RentalDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        <DwellyOrbitingLoader size={32} />
       </div>
     );
   }
@@ -89,7 +90,7 @@ export default function RentalDetailPage() {
           {rental.imageUrls.map((url, index) => (
             <img
               key={index}
-              src={filesApi.getUrl(url)}
+              src={filesApi.getUrl(rental.mediumUrls?.[index] || rental.thumbnailUrls?.[index] || url)}
               alt={`Property ${index + 1}`}
               className="w-full h-48 object-cover rounded-lg"
             />

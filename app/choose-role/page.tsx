@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BuildingOfficeIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { accountApi, SERVICE_CATEGORIES, servicesApi } from "@/lib/api";
 
 function ChooseRoleForm() {
@@ -72,7 +73,7 @@ function ChooseRoleForm() {
   if (isLoading || isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <DwellyOrbitingLoader size={72} />
       </div>
     );
   }
@@ -133,7 +134,7 @@ function ChooseRoleForm() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Services</h3>
               <p className="text-gray-500 leading-relaxed mb-6">
-                Offer specialized home and personal services such as Mama Fua, Plumbing, Gas & Food delivery, Moving, and more.
+                Offer specialized home and personal services such as Internet providers, Mama Fua, Plumbing, Gas & Food delivery, Moving, and more.
               </p>
             </div>
 

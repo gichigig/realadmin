@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import { 
   FlagIcon, 
   CheckCircleIcon, 
@@ -432,7 +433,7 @@ export default function ReportsPage() {
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <DwellyOrbitingLoader size={32} />
             <p className="mt-2 text-gray-500">Loading reports...</p>
           </div>
         ) : reports.length === 0 ? (

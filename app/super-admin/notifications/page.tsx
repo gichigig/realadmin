@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { superAdminApi } from "@/lib/api";
+import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
 import {
   BellAlertIcon,
   PaperAirplaneIcon,
@@ -38,7 +39,7 @@ export default function PushNotificationsPage() {
   if (authLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+        <DwellyOrbitingLoader size={32} />
       </div>
     );
   }
