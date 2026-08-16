@@ -1,11 +1,39 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { getAppCheckToken } from "./firebase";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ishinadwelly.com/api";
 const AUTH_REQUEST_TIMEOUT_MS = 10000;
 const SESSION_EXPIRED_EVENT = "realadmin:session-expired";
 
+/**
+ * Inject the X-Firebase-AppCheck header into any existing headers object.
+ */
+const injectAppCheckHeader = async (
+  existing?: HeadersInit
+): Promise<Record<string, string>> => {
+  const token = await getAppCheckToken();
+  const merged: Record<string, string> = {};
+  // Copy existing headers
+  if (existing) {
+    if (existing instanceof Headers) {
+      existing.forEach((v, k) => { merged[k] = v; });
+    } else if (Array.isArray(existing)) {
+      existing.forEach(([k, v]) => { merged[k] = v; });
+    } else {
+      Object.assign(merged, existing);
+    }
+  }
+  if (token) {
+    merged["X-Firebase-AppCheck"] = token;
+  }
+  return merged;
+};
+
+/**
+ * Fetch with a timeout AND automatic App Check token injection.
+ */
 const fetchWithTimeout = async (
   url: string,
   options?: RequestInit,
@@ -15,10 +43,22 @@ const fetchWithTimeout = async (
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    const headers = await injectAppCheckHeader(options?.headers);
+    return await fetch(url, { ...options, headers, signal: controller.signal });
   } finally {
     window.clearTimeout(timeoutId);
   }
+};
+
+/**
+ * Plain fetch with automatic App Check token injection (no timeout).
+ */
+const appCheckFetch = async (
+  url: string,
+  options?: RequestInit
+): Promise<Response> => {
+  const headers = await injectAppCheckHeader(options?.headers);
+  return fetch(url, { ...options, headers });
 };
 
 const normalizeUser = (user: any): User | null => {
@@ -219,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string, forceLogin = false): Promise<LoginResult> => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/init`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/init`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, clientType: "WEB", forceLogin }),
@@ -274,7 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const verifyTotpLogin = async (challengeId: string, challengeToken: string, code: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/verify-totp`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/verify-totp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, challengeToken, code }),
@@ -294,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     challengeToken: string,
     recoveryCode: string
   ) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/verify-recovery`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/verify-recovery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, challengeToken, recoveryCode }),
@@ -310,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendPushChallenge = async (challengeId: string, challengeToken: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/push/send`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/push/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, challengeToken }),
@@ -321,7 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const pollPushChallengeStatus = async (challengeId: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/push/status?challengeId=${encodeURIComponent(challengeId)}`);
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/push/status?challengeId=${encodeURIComponent(challengeId)}`);
     if (!response.ok) {
       throw new Error("Failed to check push status");
     }
@@ -333,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchPasskeyOptions = async (challengeId: string, challengeToken: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/passkey/options`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/passkey/options`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, challengeToken }),
@@ -352,7 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clientType = "REALADMIN",
     forceLogin = false
   ): Promise<{ status: "AUTHENTICATED" | "MFA_REQUIRED"; challenge?: MfaChallenge }> => {
-    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken, clientType, forceLogin }),
@@ -392,7 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     redirectUri: string,
     clientType = "REALADMIN"
   ) => {
-    const response = await fetch(`${API_BASE_URL}/auth/bluvberry/exchange`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/bluvberry/exchange`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, redirectUri, clientType }),
@@ -412,7 +452,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     challengeToken: string,
     credential: any
   ) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login/passkey/verify`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/login/passkey/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, challengeToken, credential }),
@@ -428,7 +468,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (registerData: RegisterData) => {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await appCheckFetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(registerData),
@@ -445,7 +485,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     if (token) {
-      fetch(`${API_BASE_URL}/auth/logout`, {
+      appCheckFetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
@@ -526,12 +566,16 @@ export function useAuth() {
   return context;
 }
 
-export function getAuthHeaders(token: string | null): HeadersInit {
-  const headers: HeadersInit = {
+export async function getAuthHeaders(token: string | null): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+  const appCheckToken = await getAppCheckToken();
+  if (appCheckToken) {
+    headers["X-Firebase-AppCheck"] = appCheckToken;
   }
   return headers;
 }

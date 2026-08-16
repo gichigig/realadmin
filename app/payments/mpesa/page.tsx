@@ -46,7 +46,7 @@ const parseAmount = (value: string | null) => {
 function MpesaPaymentContent() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type")?.toUpperCase() || "DONATION";
-  const targetId = searchParams.get("targetId") || "";
+  const targetId = searchParams.get("targetId") || searchParams.get("helperId") || "";
   const sponsorshipType = searchParams.get("sponsorshipType") || "LOCAL";
   const token = searchParams.get("token") || "";
   
@@ -71,6 +71,15 @@ function MpesaPaymentContent() {
 
   const paymentConfig = useMemo(() => {
     switch (type) {
+      case "HELPER":
+        return {
+          title: "Hire Helper & Pay Booking Fee",
+          description: "Secure payment to confirm helper booking and start communication.",
+          endpoint: `${API_BASE_URL}/helper-jobs/hire/${targetId}`,
+          pollEndpoint: (checkoutId: string) => `${API_BASE_URL}/mpesa/status/${checkoutId}`,
+          getPayload: (phone: string, amount: number) => ({ phoneNumber: phone, amount }),
+          checkSuccess: (data: any) => (data.status || "").toUpperCase() === "COMPLETED",
+        };
       case "PREMIUM":
         return {
           title: "Upgrade to Dwelly Premium",

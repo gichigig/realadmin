@@ -20,11 +20,68 @@ import {
   PaperClipIcon,
   XMarkIcon,
   DocumentIcon,
+  PhoneIcon,
+  VideoCameraIcon,
 } from "@heroicons/react/24/outline";
+import LiveKitCallRoom from "@/components/LiveKitCallRoom";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ishinadwelly.com/api";
 const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_URL || API_BASE_URL.replace(/\/api\/?$/, "");
+
+const renderMessageWithLinks = (text: string, isSender: boolean) => {
+  if (!text) return null;
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
+  const parts: (string | React.ReactNode)[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(urlRegex)) {
+    const matchedUrl = match[0];
+    const matchIndex = match.index!;
+
+    if (matchIndex > lastIndex) {
+      parts.push(text.substring(lastIndex, matchIndex));
+    }
+
+    let cleanUrl = matchedUrl;
+    let trailingPunct = '';
+    while (cleanUrl.endsWith('.') || cleanUrl.endsWith(',') || cleanUrl.endsWith('!')) {
+      trailingPunct = cleanUrl[cleanUrl.length - 1] + trailingPunct;
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+    }
+
+    const href = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')
+      ? cleanUrl
+      : `https://${cleanUrl}`;
+
+    parts.push(
+      <a
+        key={matchIndex}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`underline font-semibold hover:opacity-80 transition-opacity break-all ${
+          isSender ? 'text-amber-300' : 'text-blue-600 dark:text-teal-400'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {cleanUrl}
+      </a>
+    );
+
+    if (trailingPunct) {
+      parts.push(trailingPunct);
+    }
+
+    lastIndex = matchIndex + matchedUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts;
+};
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -45,6 +102,9 @@ export default function MessagesPage() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [activeCall, setActiveCall] = useState<{ roomName: string; isVideo: boolean } | null>(null);
+  const [endedCalls, setEndedCalls] = useState<Set<string>>(new Set());
+  const [incomingCall, setIncomingCall] = useState<{ roomName: string; isVideo: boolean; callerName: string; callerAvatar: string; conversationId: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isPrependingRef = useRef<boolean>(false);
@@ -89,6 +149,24 @@ export default function MessagesPage() {
           // Backend sends MessageDTO, check if it has conversationId (indicating a new message)
           // This is for messages in conversations we're NOT currently viewing
           if (notification.conversationId) {
+            if (notification.messageType === 'CALL_INVITE' && notification.content) {
+              try {
+                const callContent = JSON.parse(notification.content);
+                if (callContent.callerId !== user.id) {
+                  setIncomingCall({
+                    roomName: callContent.roomName,
+                    isVideo: callContent.isVideo,
+                    callerName: callContent.callerName || "Someone",
+                    callerAvatar: callContent.callerAvatar || "",
+                    conversationId: notification.conversationId,
+                  });
+                }
+              } catch (e) {
+                console.error("Failed to parse call invite", e);
+              }
+            } else if (notification.messageType === 'CALL_CANCEL' || notification.messageType === 'CALL_REJECT') {
+              setIncomingCall(null);
+            }
             // Refresh conversations list to update last message preview and unread counts
             conversationsApi.getAll().then(setConversations).catch(console.error);
           }
@@ -166,6 +244,23 @@ export default function MessagesPage() {
       (message: IMessage) => {
         const newMsg: Message = JSON.parse(message.body);
         console.log("Received message:", newMsg);
+
+        if (newMsg.messageType === 'CALL_INVITE' && newMsg.senderId !== user?.id && newMsg.content) {
+          try {
+            const callContent = JSON.parse(newMsg.content);
+            setIncomingCall({
+              roomName: callContent.roomName,
+              isVideo: callContent.isVideo,
+              callerName: callContent.callerName || "Someone",
+              callerAvatar: callContent.callerAvatar || "",
+              conversationId: selectedConversation.id,
+            });
+          } catch (e) {
+            console.error("Failed to parse call invite", e);
+          }
+        } else if (newMsg.messageType === 'CALL_CANCEL' || newMsg.messageType === 'CALL_REJECT') {
+          setIncomingCall(null);
+        }
 
         // Add message if not already present (avoid duplicates)
         setMessages((prev) => {
@@ -593,6 +688,56 @@ export default function MessagesPage() {
       });
   };
 
+  const speakUnavailable = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("The user is currently unavailable");
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const startCall = async (isVideo: boolean) => {
+    if (!selectedConversation || !user) return;
+
+    const recipientId = selectedConversation.userId === user.id
+      ? selectedConversation.ownerId
+      : selectedConversation.userId;
+
+    if (recipientId) {
+      try {
+        const presence = await conversationsApi.checkUserPresence(recipientId);
+        if (!presence.isOnline) {
+          speakUnavailable();
+          alert("The user is currently unavailable");
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to check user presence", e);
+      }
+    }
+
+    const roomName = `call_${selectedConversation.id}_${Date.now()}`;
+    
+    const inviteJson = JSON.stringify({
+      roomName,
+      callerId: user.id,
+      callerName: (user.firstName ? `${user.firstName} ${user.lastName}`.trim() : user.email) || "Admin",
+      callerAvatar: "",
+      isVideo,
+      type: "CALL_INVITE",
+    });
+
+    try {
+      await conversationsApi.sendCustomMessage(selectedConversation.id, {
+        content: inviteJson,
+        messageType: 'CALL_INVITE'
+      });
+      setActiveCall({ roomName, isVideo });
+    } catch (e) {
+      console.error("Failed to start call", e);
+    }
+  };
+
   const handleSendLiveLocation = async () => {
     setShowAttachmentMenu(false);
     if (!selectedConversation) return;
@@ -723,7 +868,20 @@ export default function MessagesPage() {
                     </p>
                     {conversation.lastMessage && (
                       <p className="text-xs md:text-sm text-gray-500 truncate mt-1.5 font-normal">
-                        {conversation.lastMessage}
+                        {(() => {
+                          const msg = conversation.lastMessage.trim();
+                          if (msg.startsWith("{") && msg.endsWith("}")) {
+                            try {
+                              const parsed = JSON.parse(msg);
+                              if (parsed.type === "CALL_INVITE" || parsed.roomName) {
+                                return parsed.isVideo ? "📹 Video call" : "📞 Voice call";
+                              }
+                              if (parsed.name && parsed.phone) return "👤 Contact shared";
+                              if (parsed.latitude || parsed.lat) return "📍 Location shared";
+                            } catch (_) {}
+                          }
+                          return conversation.lastMessage;
+                        })()}
                       </p>
                     )}
                   </div>
@@ -761,6 +919,22 @@ export default function MessagesPage() {
                     <HomeIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                     <span className="truncate">{selectedConversation.rentalTitle}</span>
                   </p>
+                </div>
+                <div className="flex items-center gap-1 md:gap-2">
+                  <button
+                    onClick={() => startCall(false)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"
+                    title="Voice Call"
+                  >
+                    <PhoneIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => startCall(true)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"
+                    title="Video Call"
+                  >
+                    <VideoCameraIcon className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
 
@@ -880,9 +1054,35 @@ export default function MessagesPage() {
                                 <span>Live Location Active</span>
                               </div>
                             )}
+                            {message.messageType === "CALL_INVITE" && (
+                              <div className={`mt-1.5 flex items-center gap-3 ${isOwner ? "text-green-100 bg-green-500/80" : "text-green-700 bg-green-50"} p-3 rounded-xl font-semibold text-sm`}>
+                                {(() => {
+                                  try {
+                                    const c = JSON.parse(message.content);
+                                    return (
+                                      <>
+                                        {c.isVideo ? <VideoCameraIcon className="w-5 h-5 flex-shrink-0" /> : <PhoneIcon className="w-5 h-5 flex-shrink-0" />}
+                                        <span className="flex-1">{c.isVideo ? "Video" : "Voice"} Call {isOwner ? "Started" : "Received"}</span>
+                                        {!isOwner && !endedCalls.has(c.roomName) && (
+                                          <button
+                                            onClick={() => setActiveCall({ roomName: c.roomName, isVideo: c.isVideo })}
+                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs transition"
+                                          >
+                                            Join
+                                          </button>
+                                        )}
+                                        {!isOwner && endedCalls.has(c.roomName) && (
+                                          <span className="text-xs text-gray-500 font-normal">Call Ended</span>
+                                        )}
+                                      </>
+                                    );
+                                  } catch(e) { return <span>Call Started</span>; }
+                                })()}
+                              </div>
+                            )}
                             {/* Text content (hide for media types that already show content) */}
-                            {(!message.mediaUrl && message.messageType !== "CONTACT" && message.messageType !== "LOCATION" && message.messageType !== "LIVE_LOCATION") && (
-                              <p className="text-sm md:text-base leading-relaxed">{message.content}</p>
+                            {(!message.mediaUrl && message.messageType !== "CONTACT" && message.messageType !== "LOCATION" && message.messageType !== "LIVE_LOCATION" && message.messageType !== "CALL_INVITE") && (
+                              <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{renderMessageWithLinks(message.content, isOwner)}</p>
                             )}
                             <p
                               className={`text-[10px] md:text-xs mt-1 text-right ${
@@ -1029,6 +1229,69 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+      {/* Incoming Call Dialog */}
+      {incomingCall && !activeCall && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[150] p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200">
+            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6 relative animate-pulse">
+              {incomingCall.callerAvatar ? (
+                <img src={getMediaUrl(incomingCall.callerAvatar)} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <UserCircleIcon className="w-16 h-16 text-blue-500" />
+              )}
+              <div className="absolute -bottom-2 right-0 bg-green-500 p-2 rounded-full border-4 border-white">
+                {incomingCall.isVideo ? <VideoCameraIcon className="w-5 h-5 text-white" /> : <PhoneIcon className="w-5 h-5 text-white" />}
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{incomingCall.callerName}</h2>
+            <p className="text-gray-500 mb-8 font-medium text-center">Incoming {incomingCall.isVideo ? 'video' : 'voice'} call...</p>
+            
+            <div className="flex w-full justify-center gap-8">
+              <button
+                onClick={() => {
+                  if (stompClientRef.current && incomingCall.conversationId) {
+                    try {
+                      stompClientRef.current.publish({
+                        destination: `/app/chat/${incomingCall.conversationId}/sendMessage`,
+                        body: JSON.stringify({
+                          content: JSON.stringify({ roomName: incomingCall.roomName, type: "CALL_REJECT", conversationId: incomingCall.conversationId }),
+                          messageType: "CALL_REJECT",
+                        }),
+                      });
+                    } catch (_) {}
+                  }
+                  setIncomingCall(null);
+                }}
+                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg hover:shadow-red-500/30 transition-all hover:-translate-y-1"
+              >
+                <PhoneIcon className="w-8 h-8 text-white rotate-[135deg]" />
+              </button>
+              <button
+                onClick={() => {
+                  setActiveCall({ roomName: incomingCall.roomName, isVideo: incomingCall.isVideo });
+                  setIncomingCall(null);
+                }}
+                className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-lg hover:shadow-green-500/30 transition-all hover:-translate-y-1 animate-bounce"
+              >
+                {incomingCall.isVideo ? <VideoCameraIcon className="w-8 h-8 text-white" /> : <PhoneIcon className="w-8 h-8 text-white animate-pulse" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Call Room */}
+      {activeCall && (
+        <LiveKitCallRoom
+          roomName={activeCall.roomName}
+          isVideo={activeCall.isVideo}
+          onDisconnected={() => {
+            setEndedCalls((prev) => new Set(prev).add(activeCall.roomName));
+            setActiveCall(null);
+          }}
+        />
+      )}
+
       {/* Contact Modal */}
       {showContactModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">

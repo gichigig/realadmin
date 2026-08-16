@@ -9,6 +9,9 @@ import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import HashtagsInput from "@/components/HashtagsInput";
 import DwellyOrbitingLoader from "@/components/DwellyOrbitingLoader";
+import AudioSelectorModal from "@/components/AudioSelectorModal";
+import MediaOverlayEditor, { OverlayConfig } from "@/components/MediaOverlayEditor";
+import { Music } from "lucide-react";
 
 const propertyTypes: PropertyType[] = [
   "BEDSITTER", "SINGLE_ROOM", "DOUBLE_ROOM", "ROOM", "STUDIO",
@@ -80,6 +83,15 @@ export default function EditRentalPage() {
   const [formData, setFormData] = useState<Partial<Rental>>({});
   const [uploadingCompoundVideo, setUploadingCompoundVideo] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
+  const [selectedAudio, setSelectedAudio] = useState<{ url?: string; title?: string }>({});
+  const [overlayConfig, setOverlayConfig] = useState<OverlayConfig>({
+    text: "",
+    font: "SANS",
+    color: "#FFFFFF",
+    position: "TOP_LEFT",
+    bgStyle: "DARK_BANNER",
+  });
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -92,6 +104,14 @@ export default function EditRentalPage() {
         setFormData(data);
         setSelectedAmenities(data.amenities || []);
         setHashtags(data.hashtags || []);
+        setSelectedAudio({ url: data.audioUrl || undefined, title: data.audioTitle || undefined });
+        setOverlayConfig({
+          text: data.overlayText || "",
+          font: (data.overlayFont as any) || "SANS",
+          color: data.overlayColor || "#FFFFFF",
+          position: (data.overlayPosition as any) || "TOP_LEFT",
+          bgStyle: (data.overlayBgStyle as any) || "DARK_BANNER",
+        });
         setImages(
           (data.imageUrls || []).map((url, index) => ({
             url,
@@ -253,8 +273,14 @@ export default function EditRentalPage() {
     if (!formData.price || formData.price <= 0) {
       validationErrors.push("Price must be greater than 0");
     }
-    if (images.length === 0) {
-      validationErrors.push("At least one picture is required.");
+    const isPro = Boolean(user?.isPremiumActive);
+    const hasVideo = Boolean(formData.videoUrl || formData.compoundVideoUrl);
+    const hasImages = images.length > 0;
+
+    if (!hasImages && !hasVideo) {
+      validationErrors.push("At least one photo or video is required.");
+    } else if (!hasImages && !isPro) {
+      validationErrors.push("At least one picture is required (Pro subscribers can post video-only listings).");
     }
     
     if (validationErrors.length > 0) {
@@ -277,6 +303,13 @@ export default function EditRentalPage() {
         imageUrls: images.map((img) => img.url),
         thumbnailUrls: images.map((img) => img.thumbnailUrl || ""),
         mediumUrls: images.map((img) => img.mediumUrl || ""),
+        audioUrl: selectedAudio.url || undefined,
+        audioTitle: selectedAudio.title || undefined,
+        overlayText: overlayConfig.text || undefined,
+        overlayFont: overlayConfig.font || undefined,
+        overlayColor: overlayConfig.color || undefined,
+        overlayPosition: overlayConfig.position || undefined,
+        overlayBgStyle: overlayConfig.bgStyle || undefined,
         hasVideo: (formData.videoUrl != null || formData.compoundVideoUrl != null),
         amenities: selectedAmenities,
         hashtags: hashtags,
@@ -701,6 +734,66 @@ export default function EditRentalPage() {
             </div>
           )}
         </div>
+
+        {/* Listing Background Music & Audio Section */}
+        <div className="bg-white rounded-lg shadow p-6 border border-zinc-200">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Music className="w-5 h-5 text-blue-600" /> Listing Background Music & Audio
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Attach custom audio or search online music to play when tenants view your listing (photo or video).
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAudioModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition flex items-center gap-2"
+            >
+              <Music className="w-4 h-4" />
+              {selectedAudio.url ? "Change Audio" : "Search & Add Music"}
+            </button>
+          </div>
+
+          {selectedAudio.url ? (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between mt-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                  ♪
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">{selectedAudio.title || "Background Music Track"}</h4>
+                  <p className="text-xs text-blue-700 truncate max-w-md">{selectedAudio.url}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAudio({ url: undefined, title: undefined })}
+                className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-md hover:bg-red-200"
+              >
+                Remove Track
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 italic mt-2">No audio track attached yet. Click to search online music or pick a preset.</p>
+          )}
+        </div>
+
+        <AudioSelectorModal
+          isOpen={isAudioModalOpen}
+          onClose={() => setIsAudioModalOpen(false)}
+          onSelectTrack={(track) => setSelectedAudio({ url: track.url, title: track.title })}
+          currentAudioUrl={selectedAudio.url}
+          currentAudioTitle={selectedAudio.title}
+        />
+
+        {/* Media Overlay Editor */}
+        <MediaOverlayEditor
+          config={overlayConfig}
+          onChange={setOverlayConfig}
+          sampleImageUrl={images[0]?.url ? filesApi.getUrl(images[0].url) : undefined}
+        />
 
         {/* Submit */}
         <div className="flex justify-end space-x-4">

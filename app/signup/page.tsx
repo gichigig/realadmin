@@ -6,6 +6,49 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { GoogleLogin } from "@react-oauth/google";
 
+const DISPOSABLE_DOMAINS = new Set([
+  "tempmail.com", "temp-mail.org", "temp-mail.io", "tempmail.net", "tempmailo.com",
+  "10minutemail.com", "10minutemail.net", "10minutemail.org", "10minmail.com",
+  "guerrillamail.com", "guerrillamail.net", "guerrillamail.org", "guerrillamail.biz", "guerrillamailblock.com", "grr.la",
+  "mailinator.com", "mailinator2.com", "sogetthis.com", "suremail.info", "mailinater.com",
+  "yopmail.com", "yopmail.fr", "yopmail.net", "cool.fr.nf", "jetable.fr.nf", "nospam.ze.tc",
+  "trashmail.com", "trashmail.net", "trashmail.me", "trashmail.org", "trashcanmail.com",
+  "getnada.com", "abox.online", "wuzup.net", "givmail.com", "dropmail.me",
+  "dispostable.com", "sharklasers.com", "spam4.me", "throwawaymail.com",
+  "fakeinbox.com", "crazymailing.com", "maildrop.cc", "mohmal.com",
+  "disposablemail.com", "tempmail.oess.net", "emailondeck.com", "mytemp.email",
+  "boun.cr", "inboxalias.com", "anonbox.net", "tmpmail.org", "tmpmail.net",
+  "disposable.email", "0clickemail.com", "byom.de", "dayrep.com", "teleworm.us",
+  "rhyta.com", "einrot.com", "armyspy.com", "cuvox.de", "superrito.com",
+  "fleckens.hu", "gustr.com", "jourrapide.com", "iinet.net.au", "tempail.com",
+  "fake-box.com", "generator.email", "incognitomail.org", "burnermail.io",
+  "trashmail.de", "spambox.us", "safetymail.info", "mytempmail.com",
+  "mailcatch.com", "guerrillamail.info", "sharklasers.org", "yopmail.org",
+  "tempmail.dev", "tempmail.app", "tempmail.plus", "vmail.dev", "disposable.com"
+]);
+
+const DISPOSABLE_KEYWORDS = [
+  "tempmail", "disposable", "throwaway", "fakeinbox", "mailinator",
+  "trashmail", "guerrillamail", "10minute", "maildrop", "yopmail",
+  "getnada", "anonbox", "0click", "burnermail", "incognitomail",
+  "spambox", "tempail", "generator.email", "receive-sms", "fake-mail"
+];
+
+function isDisposableEmail(email: string): boolean {
+  if (!email || !email.includes("@")) return false;
+  const domain = email.trim().toLowerCase().split("@")[1];
+  if (!domain) return false;
+
+  if (DISPOSABLE_DOMAINS.has(domain)) return true;
+  for (const d of DISPOSABLE_DOMAINS) {
+    if (domain.endsWith("." + d)) return true;
+  }
+  for (const k of DISPOSABLE_KEYWORDS) {
+    if (domain.includes(k)) return true;
+  }
+  return false;
+}
+
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,6 +75,11 @@ function SignupForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (isDisposableEmail(formData.email)) {
+      setError("Disposable or temporary email addresses are not allowed. Please use a valid personal or work email address.");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");

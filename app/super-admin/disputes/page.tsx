@@ -28,12 +28,12 @@ export default function DisputesPage() {
     }
   };
 
-  const handleResolve = async (jobId: number, action: "REFUND_CLIENT" | "PAY_HELPER") => {
+  const handleResolve = async (jobId: number, action: "REFUND_CLIENT" | "PAY_HELPER" | "REFUND_CLIENT_B2C", phone?: string) => {
     if (!window.confirm("Are you sure you want to resolve this dispute? This action cannot be undone.")) return;
     setActionLoading(jobId);
     setMessage(null);
     try {
-      const res = await helperJobsApi.resolveDispute(jobId, action);
+      const res = await helperJobsApi.resolveDispute(jobId, action, phone);
       setMessage({ type: "success", text: res.message });
       fetchDisputes();
     } catch (err: any) {
@@ -41,6 +41,20 @@ export default function DisputesPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleB2CRefund = (job: any) => {
+    const defaultPhone = job.client?.phone || "";
+    const enteredPhone = window.prompt(
+      `Enter client M-Pesa phone number to automatically refund KES ${job.amount} via B2C:`,
+      defaultPhone
+    );
+    if (enteredPhone === null) return; // cancelled
+    if (!enteredPhone.trim()) {
+      alert("Please provide a valid phone number for the B2C payout.");
+      return;
+    }
+    handleResolve(job.id, "REFUND_CLIENT_B2C", enteredPhone.trim());
   };
 
   if (loading) {
@@ -132,11 +146,18 @@ export default function DisputesPage() {
                     <div className="flex flex-col gap-3 min-w-[200px] border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-gray-200">
                       <p className="text-sm font-medium text-gray-500 mb-1">Resolution Actions</p>
                       <button
+                        onClick={() => handleB2CRefund(job)}
+                        disabled={actionLoading === job.id}
+                        className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 shadow-sm transition-colors"
+                      >
+                        {actionLoading === job.id ? "Processing..." : "Refund via M-Pesa B2C"}
+                      </button>
+                      <button
                         onClick={() => handleResolve(job.id, "REFUND_CLIENT")}
                         disabled={actionLoading === job.id}
                         className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
                       >
-                        {actionLoading === job.id ? "Processing..." : "Refund Client"}
+                        {actionLoading === job.id ? "Processing..." : "Mark Refunded (Manual)"}
                       </button>
                       <button
                         onClick={() => handleResolve(job.id, "PAY_HELPER")}
@@ -146,7 +167,7 @@ export default function DisputesPage() {
                         {actionLoading === job.id ? "Processing..." : "Pay Helper"}
                       </button>
                       <p className="text-xs text-gray-500 text-center mt-2">
-                        Refunds require manual M-Pesa B2C processing on the Safaricom portal.
+                        B2C directly sends funds to phone via M-Pesa. Manual only changes status.
                       </p>
                     </div>
                   </div>

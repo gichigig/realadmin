@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 import DonateModal from "@/components/DonateModal";
@@ -30,8 +31,10 @@ import {
 const AnimatedGlobe = dynamic(() => import("@/components/AnimatedGlobe"), {
   ssr: false,
   loading: () => (
-    <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="relative flex items-center justify-center">
+      <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
     </div>
   ),
 });
@@ -87,8 +90,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="flex items-center justify-center">
-                <img src="/icon.png" alt="IshinaDwelly Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-full" />
+              <div className="flex items-center justify-center relative w-14 h-14 sm:w-16 sm:h-16">
+                <Image src="/icon.png" alt="IshinaDwelly Logo" fill priority className="object-contain rounded-full" sizes="(max-width: 640px) 56px, 64px" />
               </div>
               <span className="text-2xl font-bold text-gray-900 tracking-tight">IshinaDwelly</span>
             </div>
@@ -99,7 +102,7 @@ export default function LandingPage() {
               <Link href="/faqs" className="text-gray-600 hover:text-gray-900 transition-colors">
                 FAQs
               </Link>
-              <Link href="/help#download" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="/download" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Download App
               </Link>
             </div>
@@ -165,7 +168,7 @@ export default function LandingPage() {
                   FAQs
                 </Link>
                 <Link
-                  href="/help#download"
+                  href="/download"
                   className="text-gray-600 hover:text-gray-900 font-medium px-2 py-2 hover:bg-gray-50 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -250,7 +253,7 @@ export default function LandingPage() {
                   <DevicePhoneMobileIcon className="w-5 h-5" />
                   <span>
                     <strong>Full features</strong> available in our mobile app.{" "}
-                    <Link href="/help#download" className="underline hover:no-underline">
+                    <Link href="/download" className="underline hover:no-underline">
                       Download now
                     </Link>
                   </span>

@@ -463,8 +463,9 @@ export default function IDScanner() {
         const errorData = await response.json();
         if (errorData.code === "ALREADY_REGISTERED") {
           setError("This ID has already been registered by someone else.");
-        } else if (errorData.code === "CAPTCHA_FAILED") {
-          setError("reCAPTCHA verification failed. Please try again.");
+        } else if (errorData.code === "CAPTCHA_FAILED" || errorData.code === "CAPTCHA_REQUIRED") {
+          setError("reCAPTCHA verification failed. Please check the reCAPTCHA box again.");
+          setRecaptchaToken(null);
         } else {
           setError(errorData.error || "Failed to upload ID. Please try again.");
         }
@@ -510,7 +511,7 @@ export default function IDScanner() {
               To search for lost IDs in our database, please download the FindMyID mobile app.
             </p>
             <a
-              href="/help#download"
+              href="/download"
               className="inline-flex items-center gap-2 mt-3 text-amber-800 hover:text-amber-900 font-medium text-sm"
             >
               <DevicePhoneMobileIcon className="w-5 h-5" />
@@ -645,7 +646,7 @@ export default function IDScanner() {
           )}
 
           {/* Error Display */}
-          {!isManualEntry && error && (
+          {error && !uploaded && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
               <ExclamationTriangleIcon className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div>
@@ -759,6 +760,16 @@ export default function IDScanner() {
                           </p>
                         </div>
                       </div>
+
+                      {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                          <ExclamationTriangleIcon className="w-6 h-6 text-red-600 flex-shrink-0" />
+                          <div>
+                            <h4 className="font-semibold text-red-800">Submission Error</h4>
+                            <p className="text-red-700 text-sm mt-0.5">{error}</p>
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="space-y-3">
                         <div>
@@ -909,7 +920,10 @@ export default function IDScanner() {
                         <div className="flex justify-center my-4">
                           <ReCAPTCHA
                             sitekey={RECAPTCHA_SITE_KEY}
-                            onChange={(token) => setRecaptchaToken(token)}
+                            onChange={(token) => {
+                              setRecaptchaToken(token);
+                              if (token) setError(null);
+                            }}
                           />
                         </div>
                         

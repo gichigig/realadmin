@@ -8,7 +8,7 @@ const footerLinks = {
     { name: "List Property", href: "/properties/new" },
     { name: "Advertising", href: "/advertising" },
     { name: "Features", href: "/help#features" },
-    { name: "Download App", href: "/help#download" },
+    { name: "Download App", href: "/download" },
   ],
   support: [
     { name: "Help Center", href: "/help" },
